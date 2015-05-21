@@ -1,2 +1,2 @@
-# cocktail
-Cute abstract database for Erlang inspired by KVS
+# Cocktail
+Cute abstract database for Erlang inspired by KVS.

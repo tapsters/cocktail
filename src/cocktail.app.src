@@ -1,0 +1,7 @@
+{application, cocktail,
+   [{description, "Cute abstract database for Erlang inspired by KVS"},
+    {vsn, "1"},
+    {registered, []},
+    {applications, [kernel, stdlib, mnesia]},
+    {mod, { ctail_app, []}},
+    {env, []} ]}.
