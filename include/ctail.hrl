@@ -2,6 +2,7 @@
 -define(CTAIL_HRL, 1).
 
 -record(schema, {
+  name,
   tables=[]
 }).
 

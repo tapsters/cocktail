@@ -1,6 +1,8 @@
--module(ctail_feed).
+-module(ctail_schema).
 
 -include("ctail.hrl").
+
+-export([meta/0]).
 
 meta() ->
   #schema{name=ctail, tables=[

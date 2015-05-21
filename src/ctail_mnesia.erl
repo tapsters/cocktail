@@ -2,14 +2,15 @@
 -behaviour(ctail_backend).
 
 -include_lib("stdlib/include/qlc.hrl").
+-include("ctail.hrl").
 
 -export([init/0]).
 -export([create_table/1, add_table_index/2, dir/0, destroy/0]).
--export([next_id/2, put/1, delete/0]).
+-export([next_id/2, put/1, delete/2]).
 -export([get/2, index/3, all/1, count/1]).
 
 %% custom functions
--export([join/1, change_storage/2]).
+-export([join/1, change_storage/2, exec/1]).
 
 context() -> 
   ctail:config(mnesia_context, async_dirty).
@@ -23,15 +24,15 @@ create_table(Table) ->
                {copy_type, CopyType} -> [{CopyType, [node()]} | Options];
                _ -> Options
              end,
-  case mnesia:create_table(Table#table.name, Options) of
+  case mnesia:create_table(Table#table.name, Options2) of
     {atomic, ok} -> ok;
-    {aborted, Error} -> {error, Error};
+    {aborted, Error} -> {error, Error}
   end.
 
 add_table_index(Record, Field) -> 
   case mnesia:add_table_index(Record, Field) of
     {atomic, ok} -> ok; 
-    {aborted, Error} -> {error, Error}; 
+    {aborted, Error} -> {error, Error}
   end.
 
 dir() -> 
@@ -42,23 +43,23 @@ destroy() ->
   mnesia:delete_schema([node()]), 
   ok.
 
-next_id(RecordName, Incr) -> 
-  mnesia:dirty_update_counter({id_seq, RecordName}, Incr).
+next_id(Table, Incr) -> 
+  mnesia:dirty_update_counter({id_seq, Table}, Incr).
 
 put(Records) when is_list(Records) -> 
   void(fun() -> lists:foreach(fun mnesia:write/1, Records) end);
 put(Record) -> 
   put([Record]).
 
-delete(Tab, Key) ->
-  case mnesia:activity(context(), fun()-> mnesia:delete({Tab, Key}) end) of
+delete(Table, Key) ->
+  case mnesia:activity(context(), fun()-> mnesia:delete({Table, Key}) end) of
     {aborted, Reason} -> {error, Reason};
     {atomic, _Result} -> ok;
     X -> X 
   end.
 
-get(RecordName, Key) ->
-  just_one(fun() -> mnesia:read(RecordName, Key) end).
+get(Table, Key) ->
+  just_one(fun() -> mnesia:read(Table, Key) end).
 
 index(Table, Key, Value) ->
   TableInfo = ctail:table(Table),
@@ -68,8 +69,8 @@ index(Table, Key, Value) ->
 all(R) -> 
   lists:flatten(many(fun() -> L = mnesia:all_keys(R), [mnesia:read({R, G}) || G <- L] end)).
 
-count(RecordName) -> 
-  mnesia:table_info(RecordName, size).
+count(Table) -> 
+  mnesia:table_info(Table, size).
 
 many(Fun) -> 
   case mnesia:activity(context(), Fun) of 
