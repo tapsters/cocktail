@@ -1,9 +1,11 @@
 -module(ctail_backend).
 
+-include("ctail.hrl").
+
 -callback init() -> 
   ok | {error, any()}.
 
--callback create_table(Table :: atom()) -> 
+-callback create_table(Table :: #table{}) -> 
   ok | {error, any()}.
 
 -callback add_table_index(Table :: atom(), Field :: atom()) -> 

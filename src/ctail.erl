@@ -26,8 +26,7 @@
 -export([remove/2, remove/3]).
 
 %% Table utils
--export([create_schema/0, create_schema/1]).
--export([add_seq_ids/0]).
+-export([create_schema/0, create_schema/1, create_schema/2]).
 
 %% Utils
 -export([modules/0]).
@@ -36,7 +35,7 @@
 -export([containers/0]).
 -export([config/1, config/2]).
 
--define(BACKEND, config(backend)).
+-define(BACKEND, config(backend, ctail_mnesia)).
 
 init()                   -> init(?BACKEND).
 dir()                    -> dir(?BACKEND).
@@ -61,13 +60,14 @@ dir(Backend)                      -> Backend:dir().
 destroy(Backend)                  -> Backend:destroy().
 put(Record, Backend)              -> Backend:put(Record).
 delete(Table, Key, Backend)       -> Backend:delete(Table, Key).
+get(Table, Key, Backend)          -> Backend:get(Table, Key).
 count(Table, Backend)             -> Backend:count(Table).
 all(Table, Backend)               -> Backend:all(Table).
 index(Table, Key, Value, Backend) -> Backend:index(Table, Key, Value).
 next_id(Table, Incr, Backend)     -> Backend:next_id(Table, Incr).
 
 modules() -> 
-  config(schema).
+  config(schema, [])++[ctail_schema].
 
 tables() ->
   lists:flatten([ (Module:meta())#schema.tables || Module <- modules() ]).
@@ -84,13 +84,14 @@ create_schema() ->
   create_schema(?BACKEND).
 
 create_schema(Backend) ->
+  io:format("MODULES: ~p~n", [modules()]),
   [ create_schema(Module, Backend) || Module <- modules() ].
 
 create_schema(Module, Backend) ->
   [ create_table(Table, Backend) || Table <- (Module:meta())#schema.tables ].
 
 create_table(Table, Backend) ->
-  Backend:create_table(Table#table.name),
+  Backend:create_table(Table),
   [ Backend:add_table_index(Table#table.name, Key) || Key <- Table#table.keys ].
 
 create(ContainerName) -> 
@@ -111,7 +112,7 @@ create(ContainerName, Id, Backend) ->
   Id.
 
 ensure_link(Record, Backend) ->
-  Type          = element(1, Record),
+  Table         = element(1, Record),
   Id            = element(2, Record),
   ContainerName = element(#iterator.container, Record),
   ContainerId   = case element(#iterator.feed_id, Record) of
@@ -141,7 +142,7 @@ ensure_link(Record, Backend) ->
       Prev = case Container#container.top of
                undefined -> undefined;
                TopId -> 
-                 case get(Type, TopId, Backend) of
+                 case get(Table, TopId, Backend) of
                    {error, _} -> 
                      undefined;
                    {ok, Top} ->
@@ -268,39 +269,6 @@ entries2(Table, Start, Count, Direction, Backend) ->
   case Direction of 
     #iterator.next -> lists:reverse(E);
     #iterator.prev -> E 
-  end.
-
-add_seq_ids() ->
-  Init = fun(Key) ->
-           case get(id_seq, Key) of
-             {error, _} -> 
-               {Key, put(#id_seq{thing=Key, id=0})};
-             {ok, _} -> 
-               {Key, skip} 
-           end 
-         end,
-  [ Init(atom_to_list(Name)) || {Name, _Fields} <- containers() ].
-
-range(Table, Id) -> 
-  Ranges = config(Table), 
-  find(Ranges, Table, Id).
-
-find([], _, _Id) -> [];
-find([Range|T], Table, Id) ->
-  case lookup(Range, Id) of
-    [] -> find(T, Table,Id);
-    Name -> Name 
-  end.
-
-lookup(#interval{left=Left, right=Right, name=Name}, Id) when Id =< Right, Id >= Left -> Name;
-lookup(#interval{}, _Id) -> [].
-
-get(Table, Key, Backend) ->
-  case range(Table, Key) of
-    [] -> 
-      Backend:get(Table, Key);
-    Name -> 
-      Backend:get(Name, Key) 
   end.
 
 config(Key) -> 

@@ -1,16 +1,50 @@
 -module(ctail_mnesia).
 -behaviour(ctail_backend).
+-behaviour(ctail_schema).
 
 -include_lib("stdlib/include/qlc.hrl").
 -include("ctail.hrl").
+-include("ctail_mnesia.hrl").
 
+%% Schema callbacks
+-export([meta/0]).
+
+%% Custom functions
+-export([join/1, change_storage/2, exec/1]).
+
+%% Backend callbacks
 -export([init/0]).
 -export([create_table/1, add_table_index/2, dir/0, destroy/0]).
 -export([next_id/2, put/1, delete/2]).
 -export([get/2, index/3, all/1, count/1]).
 
-%% custom functions
--export([join/1, change_storage/2, exec/1]).
+meta() ->
+  #schema{name=ctail, tables=[
+    #table{name=id_seq, fields=record_info(fields, id_seq), keys=[thing]}
+  ]}.
+
+join([]) -> 
+  mnesia:change_table_copy_type(schema, node(), ctail:config(mnesia_media, disc_copies)),
+  mnesia:create_schema([node()]),
+  ctail:create_schema(?MODULE),
+  ctail:create_schema(?MODULE, ?MODULE),
+  mnesia:wait_for_tables([ T#table.name || T <- ctail:tables()], infinity);
+
+join(Node) ->
+  mnesia:change_config(extra_db_nodes, [Node]),
+  mnesia:change_table_copy_type(schema, node(), ctail:config(mnesia_media, disc_copies)),
+
+  [{Tb, mnesia:add_table_copy(Tb, node(), Type)} || 
+   {Tb, [{N, Type}]} <- [{T, mnesia:table_info(T, where_to_commit)} || 
+                         T <- mnesia:system_info(tables)], Node==N].
+
+change_storage(Table, Type) -> 
+  mnesia:change_table_copy_type(Table, node(), Type).
+
+exec(Q) -> 
+  F = fun() -> qlc:e(Q) end, 
+  {atomic, Val} = mnesia:activity(context(), F), 
+  Val.
 
 context() -> 
   ctail:config(mnesia_context, async_dirty).
@@ -19,6 +53,7 @@ init() ->
   mnesia:start().
 
 create_table(Table) ->
+  io:format("TABLE: ~p~n", [Table]),
   Options = [{attributes, Table#table.fields}],
   Options2 = case proplists:lookup(copy_type, Table#table.options) of
                {copy_type, CopyType} -> [{CopyType, [node()]} | Options];
@@ -29,8 +64,8 @@ create_table(Table) ->
     {aborted, Error} -> {error, Error}
   end.
 
-add_table_index(Record, Field) -> 
-  case mnesia:add_table_index(Record, Field) of
+add_table_index(Table, Field) -> 
+  case mnesia:add_table_index(Table, Field) of
     {atomic, ok} -> ok; 
     {aborted, Error} -> {error, Error}
   end.
@@ -39,7 +74,7 @@ dir() ->
   mnesia:system_info(local_tables).
 
 destroy() -> 
-  [mnesia:delete_table(T) || {_, T} <- ctail:dir()], 
+  [mnesia:delete_table(T) || T <- ctail:dir()], 
   mnesia:delete_schema([node()]), 
   ok.
 
@@ -79,18 +114,14 @@ many(Fun) ->
   end.
 
 void(Fun) -> 
-  case mnesia:activity(context(),Fun) of 
+  case mnesia:activity(context(), Fun) of 
     {atomic, ok} -> ok; 
     {aborted, Error} -> {error, Error}; 
     X -> X 
   end.
 
-exec(Q) -> 
-  F = fun() -> qlc:e(Q) end, 
-  {atomic, Val} = mnesia:activity(context(), F), Val.
-
 just_one(Fun) ->
-  case mnesia:activity(context(),Fun) of
+  case mnesia:activity(context(), Fun) of
     {atomic, []} -> {error, not_found};
     {atomic, [R]} -> {ok, R};
     {atomic, [_|_]} -> {error, duplicated};
@@ -99,20 +130,3 @@ just_one(Fun) ->
     [_|_] -> {error, duplicated};
     Error -> Error
   end.
-
-join([]) -> 
-  mnesia:change_table_copy_type(schema, node(), ctail:config(mnesia_media, disc_copies)),
-  mnesia:create_schema([node()]),
-  ctail:create_schema(ctail_mnesia),
-  mnesia:wait_for_tables([ T#table.name || T <- ctail:tables()], infinity);
-
-join(Node) ->
-  mnesia:change_config(extra_db_nodes, [Node]),
-  mnesia:change_table_copy_type(schema, node(), ctail:config(mnesia_media, disc_copies)),
-
-  [{Tb, mnesia:add_table_copy(Tb, node(), Type)} || 
-   {Tb, [{N, Type}]} <- [{T, mnesia:table_info(T, where_to_commit)} || 
-                         T <- mnesia:system_info(tables)], Node==N].
-
-change_storage(Table, Type) -> 
-  mnesia:change_table_copy_type(Table, node(), Type).

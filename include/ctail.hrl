@@ -30,7 +30,6 @@
   feeds=[]
 ).
 
--record(id_seq,    {thing, id}).
 -record(interval,  {left, right, name}).
 -record(container, {?CONTAINER}).
 -record(feed,      {?CONTAINER}).
