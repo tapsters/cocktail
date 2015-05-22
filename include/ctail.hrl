@@ -26,8 +26,7 @@
   container=Container, 
   feed_id, 
   prev, 
-  next, 
-  feeds=[]
+  next
 ).
 
 -record(interval,  {left, right, name}).

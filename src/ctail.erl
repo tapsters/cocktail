@@ -17,7 +17,7 @@
 -export([count/1, count/2]).
 
 %% Chain ops
--export([create/1, create/2, create/3]).
+-export([create/2, create/3]).
 -export([add/1, add/2]).
 -export([link/1, link/2]).
 -export([feed/3, feed/4]).
@@ -47,6 +47,7 @@ index(Table, Key, Value) -> index(Table, Key, Value, ?BACKEND).
 all(Table)               -> all(Table, ?BACKEND).
 count(Table)             -> count(Table, ?BACKEND).
 
+create(Name, Id)                        -> create(Name, Id, ?BACKEND).
 add(Record)                             -> add(Record, ?BACKEND).
 link(Record)                            -> link(Record, ?BACKEND).
 feed(FeedId, Table, Count)              -> feed(FeedId, Table, Count, ?BACKEND).
@@ -91,15 +92,9 @@ create_table(Table, Backend) ->
   Backend:create_table(Table),
   [ Backend:add_table_index(Table#table.name, Key) || Key <- Table#table.keys ].
 
-create(ContainerName) -> 
-  create(ContainerName, next_id(atom_to_list(ContainerName), 1)).
-
-create(ContainerName, Backend) ->
-  create(ContainerName, next_id(atom_to_list(ContainerName), 1), Backend).
-
-create(ContainerName, Id, Backend) ->
-  Container = proplists:get_value(ContainerName, containers()),
-  Instance = list_to_tuple([ContainerName|Container]),
+create(Name, Id, Backend) ->
+  Container = proplists:get_value(Name, containers()),
+  Instance = list_to_tuple([Name|Container]),
   
   Top  = setelement(#container.id, Instance, Id),
   Top2 = setelement(#container.top, Top, undefined),
@@ -155,23 +150,14 @@ ensure_link(Record, Backend) ->
       Container5 = setelement(#container.count, Container4, element(#container.count, Container)+1),
       
       put(Container5, Backend), %% Container
-      
-      Feeds = 
-        [ case Field of
-            {FN, Fd} -> 
-              {FN, Fd};
-            _ -> 
-              {Field, create(ContainerName, {Field, Id}, Backend)}
-          end || Field <- element(#iterator.feeds, Record) ],
 
-      Record1 = setelement(#iterator.feeds, Record, Feeds), 
-      Record2 = setelement(#iterator.next, Record1, Next), 
-      Record3 = setelement(#iterator.prev, Record2, Prev), 
-      Record4 = setelement(#iterator.feed_id, Record3, element(#container.id, Container)), 
+      Record1 = setelement(#iterator.next, Record, Next), 
+      Record2 = setelement(#iterator.prev, Record1, Prev), 
+      Record3 = setelement(#iterator.feed_id, Record2, element(#container.id, Container)), 
 
-      put(Record4, Backend), % Iterator
+      put(Record3, Backend), % Iterator
       
-      {ok, Record4}
+      {ok, Record3}
   end.
 
 link(Record, Backend) ->
@@ -260,7 +246,7 @@ iterate( Table,  Start,      Count,  Direction,  Backend, Acc) ->
     {ok, Record} -> 
       Linked = element(Direction, Record),
       Count1 = case Count of 
-                 C when is_integer(C) -> C - 1; 
+                 Count2 when is_integer(Count2) -> Count2 - 1; 
                  _-> Count 
                end,
       iterate(Table, Linked, Count1, Direction, Backend, [Record|Acc]);
@@ -274,10 +260,10 @@ feed(FeedId, Table, Count, Backend) ->
   entries(Table, Start, Count, #iterator.prev, Backend).
 
 entries(Table, Start, Count, Direction, Backend) ->
-  E = traversal(Table, Start, Count, Direction, Backend),
+  Records = traversal(Table, Start, Count, Direction, Backend),
   case Direction of 
-    #iterator.next -> lists:reverse(E);
-    #iterator.prev -> E 
+    #iterator.next -> lists:reverse(Records);
+    #iterator.prev -> Records 
   end.
 
 config(Key) -> 
@@ -285,6 +271,6 @@ config(Key) ->
 config(Key, Default) -> 
   case application:get_env(ctail, Key) of
     undefined -> Default;
-    {ok, V} -> V 
+    {ok, Value} -> Value
   end.
 

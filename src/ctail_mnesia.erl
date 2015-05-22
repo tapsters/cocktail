@@ -26,8 +26,10 @@ meta() ->
 join([]) -> 
   mnesia:change_table_copy_type(schema, node(), ctail:config(mnesia_media, disc_copies)),
   mnesia:create_schema([node()]),
+  
   ctail:create_schema(?MODULE),
   ctail:create_schema(?MODULE, ?MODULE),
+  
   mnesia:wait_for_tables([ T#table.name || T <- ctail:tables()], infinity);
 
 join(Node) ->
@@ -73,7 +75,7 @@ dir() ->
   mnesia:system_info(local_tables).
 
 destroy() -> 
-  [mnesia:delete_table(T) || T <- ctail:dir()], 
+  [ mnesia:delete_table(T) || T <- ctail:dir() ], 
   mnesia:delete_schema([node()]), 
   ok.
 
