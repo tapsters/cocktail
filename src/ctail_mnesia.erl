@@ -53,7 +53,6 @@ init() ->
   mnesia:start().
 
 create_table(Table) ->
-  io:format("TABLE: ~p~n", [Table]),
   Options = [{attributes, Table#table.fields}],
   Options2 = case proplists:lookup(copy_type, Table#table.options) of
                {copy_type, CopyType} -> [{CopyType, [node()]} | Options];

@@ -20,9 +20,8 @@
 -export([create/1, create/2, create/3]).
 -export([add/1, add/2]).
 -export([link/1, link/2]).
--export([entries/3, entries/4]).
--export([entries2/4, entries2/5]).
--export([traversal/4, traversal/5]).
+-export([feed/3, feed/4]).
+-export([entries/4, entries/5]).
 -export([remove/2, remove/3]).
 
 %% Table utils
@@ -41,19 +40,18 @@ init()                   -> init(?BACKEND).
 dir()                    -> dir(?BACKEND).
 destroy()                -> destroy(?BACKEND).
 next_id(Table, Incr)     -> next_id(Table, Incr, ?BACKEND).
-put(Table)               -> put(Table, ?BACKEND).
+put(Record)              -> put(Record, ?BACKEND).
 delete(Table, Key)       -> delete(Table, Key, ?BACKEND).
 get(Table, Key)          -> get(Table, Key, ?BACKEND).
 index(Table, Key, Value) -> index(Table, Key, Value, ?BACKEND).
 all(Table)               -> all(Table, ?BACKEND).
 count(Table)             -> count(Table, ?BACKEND).
 
-add(Table)                                -> add(Table, ?BACKEND).
-link(Table)                               -> link(Table, ?BACKEND).
-entries(Container, Table, Count)          -> entries(Container, Table, Count, ?BACKEND).
-entries2(Table, Start, Count, Direction)  -> entries2(Table, Start, Count, Direction, ?BACKEND).
-traversal(Table, Start, Count, Direction) -> traversal(Table, Start, Count, Direction, ?BACKEND).
-remove(Table, Key)                        -> remove(Table, Key, ?BACKEND).
+add(Record)                             -> add(Record, ?BACKEND).
+link(Record)                            -> link(Record, ?BACKEND).
+feed(FeedId, Table, Count)              -> feed(FeedId, Table, Count, ?BACKEND).
+entries(Table, Start, Count, Direction) -> entries(Table, Start, Count, Direction, ?BACKEND).
+remove(Table, Key)                      -> remove(Table, Key, ?BACKEND).
 
 init(Backend)                     -> Backend:init().
 dir(Backend)                      -> Backend:dir().
@@ -84,7 +82,6 @@ create_schema() ->
   create_schema(?BACKEND).
 
 create_schema(Backend) ->
-  io:format("MODULES: ~p~n", [modules()]),
   [ create_schema(Module, Backend) || Module <- modules() ].
 
 create_schema(Module, Backend) ->
@@ -113,12 +110,11 @@ create(ContainerName, Id, Backend) ->
 
 ensure_link(Record, Backend) ->
   Table         = element(1, Record),
-  Id            = element(2, Record),
+  Id            = element(#iterator.id, Record),
   ContainerName = element(#iterator.container, Record),
   ContainerId   = case element(#iterator.feed_id, Record) of
-                    undefined -> 
-                      element(1, Record);
-                    Fid -> Fid 
+                    undefined -> Table;
+                    FeedId -> FeedId
                   end,
   
   Container = case get(ContainerName, ContainerId, Backend) of
@@ -127,20 +123,23 @@ ensure_link(Record, Backend) ->
                 {error, _} when ContainerId /= undefined ->
                   ContainerInfo = proplists:get_value(ContainerName, containers()),
                   Container1 = list_to_tuple([ContainerName|ContainerInfo]),
-                  Container2 = Container1#container{id=ContainerId, count=0},
-                  Container2;
-                _Error -> error 
+                  Container2 = setelement(#container.id, Container1, ContainerId),
+                  Container3 = setelement(#container.count, Container2, 0),
+                  Container3;
+                _Error -> 
+                  error 
               end,
   
   case Container of
     error -> 
       {error, no_container};
-    _ when Container#container.top == Id -> 
+    _ when element(#container.top, Container) == Id -> 
       {error, just_added};
     _ ->
       Next = undefined,
-      Prev = case Container#container.top of
-               undefined -> undefined;
+      Prev = case element(#container.top, Container) of
+               undefined -> 
+                 undefined;
                TopId -> 
                  case get(Table, TopId, Backend) of
                    {error, _} -> 
@@ -148,35 +147,36 @@ ensure_link(Record, Backend) ->
                    {ok, Top} ->
                      NewTop = setelement(#iterator.next, Top, Id),
                      put(NewTop, Backend),
-                     NewTop#iterator.id
+                     element(#iterator.id, NewTop)
                  end 
              end,
+
+      Container4 = setelement(#container.top, Container, Id),
+      Container5 = setelement(#container.count, Container4, element(#container.count, Container)+1),
       
-      Containter2 = Container#container{top=Id, count=Container#container.count+1},
-      
-      put(Containter2, Backend), %% Container
+      put(Container5, Backend), %% Container
       
       Feeds = 
         [ case Field of
             {FN, Fd} -> 
               {FN, Fd};
             _ -> 
-              {Field, create(ContainerName, {Field, Record#iterator.id}, Backend)}
-          end || Field <- Record#iterator.feeds ],
+              {Field, create(ContainerName, {Field, Id}, Backend)}
+          end || Field <- element(#iterator.feeds, Record) ],
 
-      Record1 = Record#iterator{feeds=Feeds, 
-                                next=Next, 
-                                prev=Prev, 
-                                feed_id=Container#container.id},
+      Record1 = setelement(#iterator.feeds, Record, Feeds), 
+      Record2 = setelement(#iterator.next, Record1, Next), 
+      Record3 = setelement(#iterator.prev, Record2, Prev), 
+      Record4 = setelement(#iterator.feed_id, Record3, element(#container.id, Container)), 
+
+      put(Record4, Backend), % Iterator
       
-      put(Record1, Backend), % Iterator
-      
-      {ok, Record1}
+      {ok, Record4}
   end.
 
 link(Record, Backend) ->
   Table = element(1, Record),
-  Id    = Record#iterator.id,
+  Id    = element(#iterator.id, Record),
 
   case get(Table, Id, Backend) of
     {ok, Exists} -> 
@@ -187,7 +187,7 @@ link(Record, Backend) ->
 
 add(Record, Backend) when is_tuple(Record) ->
   Table = element(1, Record),
-  Id    = Record#iterator.id,
+  Id    = element(#iterator.id, Record),
 
   case get(Table, Id, Backend) of
     {error, _} -> 
@@ -198,73 +198,82 @@ add(Record, Backend) when is_tuple(Record) ->
       {error, exist} 
   end.
 
-relink(Container, Iterator, Backend) ->
-  Id   = Iterator#iterator.id,
-  Next = Iterator#iterator.next,
-  Prev = Iterator#iterator.prev,
-  Top  = Container#container.top,
+relink(Container, Record, Backend) ->
+  Table = element(1, Record),
+  Id    = element(#iterator.id, Record),
+  Next  = element(#iterator.next, Record),
+  Prev  = element(#iterator.prev, Record),
+  Top   = element(#container.top, Container),
   
-  case get(Id, Prev, Backend) of
-    {ok, Prev1} -> Backend:put(Prev1#iterator{next=Next}, Backend);
+  case get(Table, Prev, Backend) of
+    {ok, Prev1} -> 
+      Prev2 = setelement(#iterator.next, Prev1, Next),
+      Backend:put(Prev2);
     _ -> ok 
   end,
 
-  case get(Id, Next, Backend) of
-    {ok, Next1} -> Backend:put(Next1#iterator{prev=Prev}, Backend);
+  case get(Table, Next, Backend) of
+    {ok, Next1} -> 
+      Next2 = setelement(#iterator.prev, Next1, Prev),
+      Backend:put(Next2);
     _ -> ok 
   end,
   
   Containter1 = case Top of
-                  Id -> Container#container{top=Prev};
-                  _ -> Container
+                  Id -> setelement(#container.top, Container, Prev);
+                  _  -> Container
                 end,
-  Containter2 = Containter1#container{count=Containter1#container.count-1},
-  Backend:put(Containter2, Backend).
+  Containter2 = setelement(#container.count, Containter1, element(#container.count, Containter1)-1),
 
-remove(Record, Id, Backend) ->
-  case Backend:get(Record, Id) of
+  Backend:put(Containter2).
+
+remove(Table, Id, Backend) ->
+  case Backend:get(Table, Id) of
     {error, not_found} -> 
       {error, not_found};
-    {ok, Record1} -> 
-      do_remove(Record1, Backend)
+    {ok, Record} -> 
+      do_remove(Record, Backend)
   end.
 
 do_remove(Record, Backend) ->
-  case Backend:get(Record#iterator.container, Record#iterator.feed_id) of
-    {ok, Container} -> 
-      relink(Container, Record, Backend);
+  Table     = element(1, Record),
+  Id        = element(#iterator.id, Record),
+  Container = element(#iterator.container, Record),
+  FeedId    = element(#iterator.feed_id, Record),
+  
+  case Backend:get(Container, FeedId) of
+    {ok, Container1} -> 
+      relink(Container1, Record, Backend);
     _ -> 
       skip 
   end,
-  Table = element(1, Record),
-  Id    = element(2, Record),
+
   Backend:delete(Table, Id).
 
 traversal(Table, Start, Count, Direction, Backend) ->
-  fold(fun(A, Acc) -> [A|Acc] end, [], Table, Start, Count, Direction, Backend).
+  iterate(Table, Start, Count, Direction, Backend, []).
 
-fold(_,_,_,undefined,_,_,_)                             -> [];
-fold(_,Acc,_,_,0,_,_)                                   -> Acc;
-fold(Fun, Acc, Table, Start, Count, Direction, Backend) ->
+iterate(_Table,  undefined, _Count, _Direction, _Backend, Acc) -> Acc;
+iterate(_Table, _Start,      0,     _Direction, _Backend, Acc) -> Acc;
+iterate( Table,  Start,      Count,  Direction,  Backend, Acc) ->
   case Backend:get(Table, Start) of
-    {ok, R} -> 
-      Prev = element(Direction, R),
+    {ok, Record} -> 
+      Linked = element(Direction, Record),
       Count1 = case Count of 
                  C when is_integer(C) -> C - 1; 
                  _-> Count 
                end,
-      fold(Fun, Fun(R, Acc), Table, Prev, Count1, Direction, Backend);
+      iterate(Table, Linked, Count1, Direction, Backend, [Record|Acc]);
     _Error -> 
       Acc 
   end.
 
-entries({error, _} ,_ ,_ ,_) -> [];
-entries({ok, Container}, Table, Count, Backend) -> 
-  entries(Container, Table, Count, Backend);
-entries(Container, Table, Count, Backend) -> 
-  traversal(Table, Container#container.top, Count, #iterator.prev, Backend).
+feed(FeedId, Table, Count, Backend) -> 
+  {ok, Container} = ctail:get(feed, FeedId),
+  Start = element(#container.top, Container),
+  entries(Table, Start, Count, #iterator.prev, Backend).
 
-entries2(Table, Start, Count, Direction, Backend) ->
+entries(Table, Start, Count, Direction, Backend) ->
   E = traversal(Table, Start, Count, Direction, Backend),
   case Direction of 
     #iterator.next -> lists:reverse(E);
