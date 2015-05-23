@@ -32,7 +32,7 @@
 -export([tables/0]).
 -export([table/1]).
 -export([containers/0]).
--export([config/1, config/2]).
+-export([config/1, config/2, config/3]).
 
 -define(BACKEND, config(backend, ctail_mnesia)).
 
@@ -111,7 +111,7 @@ ensure_link(Record, Backend) ->
                     undefined -> Table;
                     FeedId -> FeedId
                   end,
-  
+
   Container = case get(ContainerName, ContainerId, Backend) of
                 {ok, Result} -> 
                   Result;
@@ -124,7 +124,7 @@ ensure_link(Record, Backend) ->
                 _Error -> 
                   error 
               end,
-  
+
   case Container of
     error -> 
       {error, no_container};
@@ -142,18 +142,20 @@ ensure_link(Record, Backend) ->
                    {ok, Top} ->
                      NewTop = setelement(#iterator.next, Top, Id),
                      put(NewTop, Backend),
-                     element(#iterator.id, NewTop)
+                     element(#iterator.id, Top)
                  end 
              end,
 
       Container4 = setelement(#container.top, Container, Id),
-      Container5 = setelement(#container.count, Container4, element(#container.count, Container)+1),
+      Count      = element(#container.count, Container),
+      Container5 = setelement(#container.count, Container4, Count+1),
       
       put(Container5, Backend), %% Container
 
       Record1 = setelement(#iterator.next, Record, Next), 
       Record2 = setelement(#iterator.prev, Record1, Prev), 
-      Record3 = setelement(#iterator.feed_id, Record2, element(#container.id, Container)), 
+      FeedId1 = element(#container.id, Container),
+      Record3 = setelement(#iterator.feed_id, Record2, FeedId1), 
 
       put(Record3, Backend), % Iterator
       
@@ -209,7 +211,8 @@ relink(Container, Record, Backend) ->
                   Id -> setelement(#container.top, Container, Prev);
                   _  -> Container
                 end,
-  Containter2 = setelement(#container.count, Containter1, element(#container.count, Containter1)-1),
+  Count = element(#container.count, Containter1),
+  Containter2 = setelement(#container.count, Containter1, Count-1),
 
   Backend:put(Containter2).
 
@@ -254,8 +257,8 @@ iterate( Table,  Start,      Count,  Direction,  Backend, Acc) ->
       Acc 
   end.
 
-feed(FeedId, Table, Count, Backend) -> 
-  {ok, Container} = ctail:get(feed, FeedId),
+feed(Table, FeedId, Count, Backend) -> 
+  {ok, Container} = ?MODULE:get(feed, FeedId),
   Start = element(#container.top, Container),
   entries(Table, Start, Count, #iterator.prev, Backend).
 
@@ -269,7 +272,9 @@ entries(Table, Start, Count, Direction, Backend) ->
 config(Key) -> 
   config(Key, undefined).
 config(Key, Default) -> 
-  case application:get_env(ctail, Key) of
+  config(cocktail, Key, Default).
+config(App, Key, Default) -> 
+  case application:get_env(App, Key) of
     undefined -> Default;
     {ok, Value} -> Value
   end.
