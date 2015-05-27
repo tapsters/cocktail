@@ -8,7 +8,7 @@
 -export([init/0, init/1]).
 -export([dir/0, dir/1]).
 -export([destroy/0, destroy/1]).
--export([next_id/2, next_id/3]).
+-export([next_id/1, next_id/2, next_id/3]).
 -export([put/1, put/2]).
 -export([delete/2, delete/3]).
 -export([get/2, get/3]).
@@ -39,6 +39,7 @@
 init()                   -> init(?BACKEND).
 dir()                    -> dir(?BACKEND).
 destroy()                -> destroy(?BACKEND).
+next_id(Table)           -> next_id(Table, 1, ?BACKEND).
 next_id(Table, Incr)     -> next_id(Table, Incr, ?BACKEND).
 put(Record)              -> put(Record, ?BACKEND).
 delete(Table, Key)       -> delete(Table, Key, ?BACKEND).

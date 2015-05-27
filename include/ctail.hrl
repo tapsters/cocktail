@@ -20,16 +20,15 @@
   count=0
 ).
 
--define(ITERATOR(Container), 
+-define(ITERATOR(ContainerName), 
   id, 
   version,
-  container=Container, 
+  container=ContainerName, 
   feed_id, 
   prev, 
   next
 ).
 
--record(interval,  {left, right, name}).
 -record(container, {?CONTAINER}).
 -record(feed,      {?CONTAINER}).
 -record(iterator,  {?ITERATOR(undefined)}).
