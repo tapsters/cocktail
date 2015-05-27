@@ -51,7 +51,7 @@ count(Table)             -> count(Table, ?BACKEND).
 create(Name, Id)                        -> create(Name, Id, ?BACKEND).
 add(Record)                             -> add(Record, ?BACKEND).
 link(Record)                            -> link(Record, ?BACKEND).
-feed(Table, FeedId, Count)              -> feed(Table, FeedId,Count, ?BACKEND).
+feed(Table, FeedId, Count)              -> feed(Table, FeedId, Count, ?BACKEND).
 entries(Table, Start, Count, Direction) -> entries(Table, Start, Count, Direction, ?BACKEND).
 remove(Table, Key)                      -> remove(Table, Key, ?BACKEND).
 
