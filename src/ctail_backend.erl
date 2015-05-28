@@ -35,7 +35,7 @@
   list(tuple()).
 
 -callback all(Table :: atom()) ->
-  list(tuple()).
+  list(tuple()) | [].
 
 -callback count(Table :: atom()) ->
   integer().
