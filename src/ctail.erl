@@ -81,17 +81,22 @@ containers() ->
     || Module <- modules() ]).
 
 create_schema() ->
-  create_schema(?BACKEND).
+  create_schema(?BACKEND),
+  ok.
 
 create_schema(Backend) ->
-  [ create_schema(Module, Backend) || Module <- modules() ].
+  [ create_schema(Module, Backend) || Module <- modules() ],
+  ok.
 
 create_schema(Module, Backend) ->
-  [ create_table(Table, Backend) || Table <- (Module:meta())#schema.tables ].
+  [ create_table(Table, Backend) || Table <- (Module:meta())#schema.tables ],
+  ok.
 
+-spec create_table(Table::atom(), Backend::module()) -> ok.
 create_table(Table, Backend) ->
   Backend:create_table(Table),
-  [ Backend:add_table_index(Table#table.name, Key) || Key <- Table#table.keys ].
+  [ Backend:add_table_index(Table#table.name, Key) || Key <- Table#table.keys ],
+  ok.
 
 create(Name, Id, Backend) ->
   Container = proplists:get_value(Name, containers()),
