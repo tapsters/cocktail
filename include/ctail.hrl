@@ -7,25 +7,25 @@
 }).
 
 -record(table, {
-  name, 
-  container=feed, 
-  fields=[], 
-  keys=[], 
+  name,
+  container=feed,
+  fields=[],
+  keys=[],
   options=[]
 }).
 
--define(CONTAINER, 
-  id, 
-  top, 
+-define(CONTAINER,
+  id,
+  top,
   count=0
 ).
 
--define(ITERATOR(ContainerName), 
-  id, 
+-define(ITERATOR(ContainerName),
+  id,
   version,
-  container=ContainerName, 
-  feed_id, 
-  prev, 
+  container=ContainerName,
+  feed_id,
+  prev,
   next
 ).
 

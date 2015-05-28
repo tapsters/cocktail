@@ -9,7 +9,7 @@
 start(_,_) ->
   supervisor:start_link({local, ctail_sup}, ?MODULE, []).
 
-stop(_) -> 
+stop(_) ->
   ok.
 
 init([]) ->

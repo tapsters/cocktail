@@ -66,13 +66,13 @@ all(Table, Backend)               -> Backend:all(Table).
 index(Table, Key, Value, Backend) -> Backend:index(Table, Key, Value).
 next_id(Table, Incr, Backend)     -> Backend:next_id(Table, Incr).
 
-modules() -> 
+modules() ->
   config(schema, [])++[ctail_schema].
 
 tables() ->
   lists:flatten([ (Module:meta())#schema.tables || Module <- modules() ]).
 
-table(Name) -> 
+table(Name) ->
   lists:keyfind(Name, #table.name, tables()).
 
 containers() ->
@@ -80,7 +80,7 @@ containers() ->
         || Table=#table{container=true} <- (Module:meta())#schema.tables ]
     || Module <- modules() ]).
 
-create_schema() -> 
+create_schema() ->
   create_schema(?BACKEND).
 
 create_schema(Backend) ->
@@ -96,12 +96,12 @@ create_table(Table, Backend) ->
 create(Name, Id, Backend) ->
   Container = proplists:get_value(Name, containers()),
   Instance = list_to_tuple([Name|Container]),
-  
+
   Top  = setelement(#container.id, Instance, Id),
   Top2 = setelement(#container.top, Top, undefined),
   Top3 = setelement(#container.count, Top2, 0),
 
-  ok = put(Top3, Backend), 
+  ok = put(Top3, Backend),
   Id.
 
 ensure_link(Record, Backend) ->
@@ -114,7 +114,7 @@ ensure_link(Record, Backend) ->
                   end,
 
   Container = case get(ContainerName, ContainerId, Backend) of
-                {ok, Result} -> 
+                {ok, Result} ->
                   Result;
                 {error, _} when ContainerId /= undefined ->
                   ContainerInfo = proplists:get_value(ContainerName, containers()),
@@ -122,44 +122,44 @@ ensure_link(Record, Backend) ->
                   Container2 = setelement(#container.id, Container1, ContainerId),
                   Container3 = setelement(#container.count, Container2, 0),
                   Container3;
-                _Error -> 
-                  error 
+                _Error ->
+                  error
               end,
 
   case Container of
-    error -> 
+    error ->
       {error, no_container};
-    _ when element(#container.top, Container) == Id -> 
+    _ when element(#container.top, Container) == Id ->
       {error, just_added};
     _ ->
       Next = undefined,
       Prev = case element(#container.top, Container) of
-               undefined -> 
+               undefined ->
                  undefined;
-               TopId -> 
+               TopId ->
                  case get(Table, TopId, Backend) of
-                   {error, _} -> 
+                   {error, _} ->
                      undefined;
                    {ok, Top} ->
                      NewTop = setelement(#iterator.next, Top, Id),
                      put(NewTop, Backend),
                      element(#iterator.id, Top)
-                 end 
+                 end
              end,
 
       Container4 = setelement(#container.top, Container, Id),
       Count      = element(#container.count, Container),
       Container5 = setelement(#container.count, Container4, Count+1),
-      
+
       put(Container5, Backend), %% Container
 
-      Record1 = setelement(#iterator.next, Record, Next), 
-      Record2 = setelement(#iterator.prev, Record1, Prev), 
+      Record1 = setelement(#iterator.next, Record, Next),
+      Record2 = setelement(#iterator.prev, Record1, Prev),
       FeedId1 = element(#container.id, Container),
-      Record3 = setelement(#iterator.feed_id, Record2, FeedId1), 
+      Record3 = setelement(#iterator.feed_id, Record2, FeedId1),
 
       put(Record3, Backend), % Iterator
-      
+
       {ok, Record3}
   end.
 
@@ -168,10 +168,10 @@ link(Record, Backend) ->
   Id    = element(#iterator.id, Record),
 
   case get(Table, Id, Backend) of
-    {ok, Exists} -> 
+    {ok, Exists} ->
       ensure_link(Exists, Backend);
-    {error, not_found} -> 
-      {error, not_found} 
+    {error, not_found} ->
+      {error, not_found}
   end.
 
 add(Record, Backend) when is_tuple(Record) ->
@@ -179,12 +179,12 @@ add(Record, Backend) when is_tuple(Record) ->
   Id    = element(#iterator.id, Record),
 
   case get(Table, Id, Backend) of
-    {error, _} -> 
+    {error, _} ->
       ensure_link(Record, Backend);
-    {aborted, Reason} -> 
+    {aborted, Reason} ->
       {aborted, Reason};
-    {ok, _} -> 
-      {error, exist} 
+    {ok, _} ->
+      {error, exist}
   end.
 
 relink(Container, Record, Backend) ->
@@ -193,21 +193,21 @@ relink(Container, Record, Backend) ->
   Next  = element(#iterator.next, Record),
   Prev  = element(#iterator.prev, Record),
   Top   = element(#container.top, Container),
-  
+
   case get(Table, Prev, Backend) of
-    {ok, Prev1} -> 
+    {ok, Prev1} ->
       Prev2 = setelement(#iterator.next, Prev1, Next),
       Backend:put(Prev2);
-    _ -> ok 
+    _ -> ok
   end,
 
   case get(Table, Next, Backend) of
-    {ok, Next1} -> 
+    {ok, Next1} ->
       Next2 = setelement(#iterator.prev, Next1, Prev),
       Backend:put(Next2);
-    _ -> ok 
+    _ -> ok
   end,
-  
+
   Containter1 = case Top of
                   Id -> setelement(#container.top, Container, Prev);
                   _  -> Container
@@ -219,9 +219,9 @@ relink(Container, Record, Backend) ->
 
 remove(Table, Id, Backend) ->
   case Backend:get(Table, Id) of
-    {error, not_found} -> 
+    {error, not_found} ->
       {error, not_found};
-    {ok, Record} -> 
+    {ok, Record} ->
       do_remove(Record, Backend)
   end.
 
@@ -230,12 +230,12 @@ do_remove(Record, Backend) ->
   Id        = element(#iterator.id, Record),
   Container = element(#iterator.container, Record),
   FeedId    = element(#iterator.feed_id, Record),
-  
+
   case Backend:get(Container, FeedId) of
-    {ok, Container1} -> 
+    {ok, Container1} ->
       relink(Container1, Record, Backend);
-    _ -> 
-      skip 
+    _ ->
+      skip
   end,
 
   Backend:delete(Table, Id).
@@ -247,36 +247,35 @@ iterate(_Table,  undefined, _Count, _Direction, _Backend, Acc) -> Acc;
 iterate(_Table, _Start,      0,     _Direction, _Backend, Acc) -> Acc;
 iterate( Table,  Start,      Count,  Direction,  Backend, Acc) ->
   case Backend:get(Table, Start) of
-    {ok, Record} -> 
+    {ok, Record} ->
       Linked = element(Direction, Record),
-      Count1 = case Count of 
-                 Count2 when is_integer(Count2) -> Count2 - 1; 
-                 _-> Count 
+      Count1 = case Count of
+                 Count2 when is_integer(Count2) -> Count2 - 1;
+                 _-> Count
                end,
       iterate(Table, Linked, Count1, Direction, Backend, [Record|Acc]);
-    _Error -> 
-      Acc 
+    _Error ->
+      Acc
   end.
 
-feed(Table, FeedId, Count, Backend) -> 
+feed(Table, FeedId, Count, Backend) ->
   {ok, Container} = ?MODULE:get(feed, FeedId),
   Start = element(#container.top, Container),
   entries(Table, Start, Count, #iterator.prev, Backend).
 
 entries(Table, Start, Count, Direction, Backend) ->
   Records = traversal(Table, Start, Count, Direction, Backend),
-  case Direction of 
+  case Direction of
     #iterator.next -> lists:reverse(Records);
-    #iterator.prev -> Records 
+    #iterator.prev -> Records
   end.
 
-config(Key) -> 
+config(Key) ->
   config(Key, undefined).
-config(Key, Default) -> 
+config(Key, Default) ->
   config(cocktail, Key, Default).
-config(App, Key, Default) -> 
+config(App, Key, Default) ->
   case application:get_env(App, Key) of
     undefined -> Default;
     {ok, Value} -> Value
   end.
-
