@@ -37,9 +37,6 @@
 -define(BACKEND, config(backend, ctail_mnesia)).
 
 -type id() :: any().
--type entries() :: [] | list(tuple()).
--type ok_or_error() :: ok | {error, _}.
--type entry_or_error() :: {ok, tuple()} | {error, _}.
 
 -spec init() -> ok.
 init()                   -> init(?BACKEND).
@@ -56,19 +53,19 @@ next_id(Table)           -> next_id(Table, 1, ?BACKEND).
 -spec next_id(Table::atom(), Incr::integer()) -> id().
 next_id(Table, Incr)     -> next_id(Table, Incr, ?BACKEND).
 
--spec put(Record::tuple()) -> ok_or_error().
+-spec put(Record::tuple()) -> ok | {error, _}.
 put(Record)              -> put(Record, ?BACKEND).
 
--spec delete(Table::atom(), Key::id()) -> ok_or_error().
+-spec delete(Table::atom(), Key::id()) -> ok | {error, _}.
 delete(Table, Key)       -> delete(Table, Key, ?BACKEND).
 
--spec get(Table::atom(), Key::id()) -> entry_or_error().
+-spec get(Table::atom(), Key::id()) -> {ok, tuple()} | {error, _}.
 get(Table, Key)          -> get(Table, Key, ?BACKEND).
 
--spec index(Table::atom(), Key::any(), Value::any()) -> entries().
+-spec index(Table::atom(), Key::any(), Value::any()) -> list(tuple()).
 index(Table, Key, Value) -> index(Table, Key, Value, ?BACKEND).
 
--spec all(Table::atom()) -> entries().
+-spec all(Table::atom()) -> list(tuple()).
 all(Table)               -> all(Table, ?BACKEND).
 
 -spec count(Table::atom()) -> integer().
@@ -77,19 +74,19 @@ count(Table)             -> count(Table, ?BACKEND).
 -spec create(ContainerName::atom(), Id::id()) -> id().
 create(ContainerName, Id)               -> create(ContainerName, Id, ?BACKEND).
 
--spec add(Record::tuple()) -> entry_or_error().
+-spec add(Record::tuple()) -> {ok, tuple()} | {error, _}.
 add(Record)                             -> add(Record, ?BACKEND).
 
--spec link(Record::tuple()) -> entry_or_error().
+-spec link(Record::tuple()) -> {ok, tuple()} | {error, _}.
 link(Record)                            -> link(Record, ?BACKEND).
 
--spec feed(Table::atom(), FeedId::any(), Count::integer()) -> none() | entries().
+-spec feed(Table::atom(), FeedId::any(), Count::integer()) -> none() | list(tuple()).
 feed(Table, FeedId, Count)              -> feed(Table, FeedId, Count, ?BACKEND).
 
--spec entries(Table::atom(), Start::id(), Count::integer(), Directions::any()) -> none() | entries().
+-spec entries(Table::atom(), Start::id(), Count::integer(), Directions::any()) -> none() | list(tuple()).
 entries(Table, Start, Count, Direction) -> entries(Table, Start, Count, Direction, ?BACKEND).
 
--spec remove(Table::atom(), Id::id()) -> ok_or_error().
+-spec remove(Table::atom(), Id::id()) -> ok | {error, _}.
 remove(Table, Key)                -> remove(Table, Key, ?BACKEND).
 
 -spec init(Backend::module()) -> ok.
@@ -101,13 +98,13 @@ dir(Backend)                      -> Backend:dir().
 -spec destroy(Backend::module()) -> ok.
 destroy(Backend)                  -> Backend:destroy().
 
--spec put(Record::tuple(), Backend::module()) -> ok_or_error().
+-spec put(Record::tuple(), Backend::module()) -> ok | {error, _}.
 put(Record, Backend)              -> Backend:put(Record).
 
--spec delete(Table::atom(), Key::id(), Backend::module()) -> ok_or_error().
+-spec delete(Table::atom(), Key::id(), Backend::module()) -> ok | {error, _}.
 delete(Table, Key, Backend)       -> Backend:delete(Table, Key).
 
--spec get(Table::atom(), Key::id(), Backend::module()) -> entry_or_error().
+-spec get(Table::atom(), Key::id(), Backend::module()) -> {ok, tuple()} | {error, _}.
 get(Table, Key, Backend)          -> Backend:get(Table, Key).
 
 -spec count(Table::atom(), Backend::module()) -> integer().
@@ -131,7 +128,7 @@ tables() -> lists:flatten([ (Module:meta())#schema.tables || Module <- modules()
 -spec table(Name::atom()) -> #table{}.
 table(Name) -> lists:keyfind(Name, #table.name, tables()).
 
--spec containers() -> list({ atom(), list(atom()) }). % ???
+-spec containers() -> list({ atom(), list(atom()) }).
 containers() ->
     lists:flatten([ [ {Table#table.name, Table#table.fields}
         || Table=#table{container=true} <- (Module:meta())#schema.tables ]
@@ -164,7 +161,7 @@ create(ContainerName, Id, Backend) ->
   ok = put(Top3, Backend),
   Id.
 
--spec ensure_link(Record::tuple(), Backend::module()) -> entry_or_error().
+-spec ensure_link(Record::tuple(), Backend::module()) -> {ok, tuple()} | {error, _}.
 ensure_link(Record, Backend) ->
   Table         = element(1, Record),
   Id            = element(#iterator.id, Record),
@@ -224,7 +221,7 @@ ensure_link(Record, Backend) ->
       {ok, Record3}
   end.
 
--spec link(Record::tuple(), Backend::module()) -> entry_or_error().
+-spec link(Record::tuple(), Backend::module()) -> {ok, tuple()} | {error, _}.
 link(Record, Backend) ->
   Table = element(1, Record),
   Id    = element(#iterator.id, Record),
@@ -236,7 +233,7 @@ link(Record, Backend) ->
       {error, not_found}
   end.
 
--spec add(Record::tuple(), Backend::module()) -> entry_or_error().
+-spec add(Record::tuple(), Backend::module()) -> {ok, tuple()} | {error, _}.
 add(Record, Backend) when is_tuple(Record) ->
   Table = element(1, Record),
   Id    = element(#iterator.id, Record),
@@ -248,7 +245,7 @@ add(Record, Backend) when is_tuple(Record) ->
       {error, exist}
   end.
 
--spec relink(Container::tuple(), Record::tuple(), Backend::module()) -> ok_or_error().
+-spec relink(Container::tuple(), Record::tuple(), Backend::module()) -> ok | {error, _}.
 relink(Container, Record, Backend) ->
   Table = element(1, Record),
   Id    = element(#iterator.id, Record),
@@ -279,7 +276,7 @@ relink(Container, Record, Backend) ->
 
   Backend:put(Containter2).
 
--spec remove(Table::atom(), Id::id(), Backend::module()) -> ok_or_error().
+-spec remove(Table::atom(), Id::id(), Backend::module()) -> ok | {error, _}.
 remove(Table, Id, Backend) ->
   case Backend:get(Table, Id) of
     {error, not_found} ->
@@ -304,10 +301,12 @@ do_remove(Record, Backend) ->
 
   Backend:delete(Table, Id).
 
--spec traversal(Table::atom(), Start::id(), Count::integer(), Direction::any(), Backend::module()) -> entries().
+-spec traversal(Table::atom(), Start::id(), Count::integer(), Direction::integer(),
+    Backend::module()) -> list(tuple()).
 traversal(Table, Start, Count, Direction, Backend) -> iterate(Table, Start, Count, Direction, Backend, []).
 
--spec iterate(Table::atom(), Start::id(), Count::integer(), Direction::any(), Backend::module(), Acc::entries()) -> entries(). % ???
+-spec iterate(Table::atom(), Start::id(), Count::integer(), Direction::integer(),
+    Backend::module(), Acc::list(tuple())) -> list(tuple()).
 iterate(_Table,  undefined, _Count, _Direction, _Backend, Acc) -> Acc;
 iterate(_Table, _Start,      0,     _Direction, _Backend, Acc) -> Acc;
 iterate( Table,  Start,      Count,  Direction,  Backend, Acc) ->
@@ -323,14 +322,13 @@ iterate( Table,  Start,      Count,  Direction,  Backend, Acc) ->
       Acc
   end.
 
-
--spec feed(Table::atom(), FeedId::any(), Count::integer(), Backend::module()) -> none() | entries().
+-spec feed(Table::atom(), FeedId::any(), Count::integer(), Backend::module()) -> none() | list(tuple()).
 feed(Table, FeedId, Count, Backend) ->
   {ok, Container} = get(feed, FeedId),
   Start = element(#container.top, Container),
   entries(Table, Start, Count, #iterator.prev, Backend).
 
--spec entries(Table::atom(), Start::id(), Count::integer(), Direction::any(), Backend::module()) -> none() | entries().
+-spec entries(Table::atom(), Start::id(), Count::integer(), Direction::any(), Backend::module()) -> none() | list(tuple()).
 entries(Table, Start, Count, Direction, Backend) ->
   Records = traversal(Table, Start, Count, Direction, Backend),
   case Direction of
