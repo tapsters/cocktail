@@ -18,42 +18,12 @@
 -export([next_id/2, put/1, delete/2]).
 -export([get/2, index/3, all/1, count/1]).
 
-meta() ->
-  #schema{name=ctail, tables=[
-    #table{name=id_seq, fields=record_info(fields, id_seq), keys=[thing]}
-  ]}.
+-type mnesia_strategy() :: ram_copies | disc_only_copies | disc_copies.
 
-join() ->
-  mnesia:change_table_copy_type(schema, node(), ctail:config(mnesia_media, disc_copies)),
-  mnesia:create_schema([node()]),
+-spec init() -> ok | {error, any()}.
+init() -> mnesia:start().
 
-  ctail:create_schema(?MODULE),
-  ctail:create_schema(?MODULE, ?MODULE),
-
-  mnesia:wait_for_tables([ T#table.name || T <- ctail:tables()], infinity).
-
-join(Node) ->
-  mnesia:change_config(extra_db_nodes, [Node]),
-  mnesia:change_table_copy_type(schema, node(), ctail:config(mnesia_media, disc_copies)),
-
-  [{Tb, mnesia:add_table_copy(Tb, node(), Type)} ||
-   {Tb, [{N, Type}]} <- [{T, mnesia:table_info(T, where_to_commit)} ||
-                         T <- mnesia:system_info(tables)], Node==N].
-
-change_storage(Table, Type) ->
-  mnesia:change_table_copy_type(Table, node(), Type).
-
-exec(Q) ->
-  F = fun() -> qlc:e(Q) end,
-  {atomic, Val} = mnesia:activity(context(), F),
-  Val.
-
-context() ->
-  ctail:config(mnesia_context, async_dirty).
-
-init() ->
-  mnesia:start().
-
+-spec create_table(Table::#table{}) -> ok | {error, any()}.
 create_table(Table) ->
   Options = [{attributes, Table#table.fields}],
   Options2 = case proplists:lookup(copy_type, Table#table.options) of
@@ -65,55 +35,100 @@ create_table(Table) ->
     {aborted, Error} -> {error, Error}
   end.
 
+-spec add_table_index(Table::atom(), Field::atom()) -> ok | {error, any()}.
 add_table_index(Table, Field) ->
   case mnesia:add_table_index(Table, Field) of
     {atomic, ok} -> ok;
     {aborted, Error} -> {error, Error}
   end.
 
-dir() ->
-  mnesia:system_info(local_tables).
+-spec dir() -> list(atom()).
+dir() -> mnesia:system_info(local_tables).
 
+-spec destroy() -> ok.
 destroy() ->
   [ mnesia:delete_table(T) || T <- ctail:dir() ],
   mnesia:delete_schema([node()]),
   ok.
 
-next_id(Table, Incr) ->
-  mnesia:dirty_update_counter({id_seq, Table}, Incr).
+-spec put(Record::tuple() | list(tuple())) -> ok | {error, any()}.
+put(Records) when is_list(Records) -> void(fun() -> lists:foreach(fun mnesia:write/1, Records) end);
+put(Record) -> put([Record]).
 
-put(Records) when is_list(Records) ->
-  void(fun() -> lists:foreach(fun mnesia:write/1, Records) end);
-put(Record) ->
-  put([Record]).
-
+-spec delete(Table::atom(), Key::ctail:id()) -> ok | {error, any()}.
 delete(Table, Key) ->
   case mnesia:activity(context(), fun()-> mnesia:delete({Table, Key}) end) of
     {aborted, Reason} -> {error, Reason};
     {atomic, _Result} -> ok;
-    X -> X
+    ok -> ok
   end.
 
-get(Table, Key) ->
-  just_one(fun() -> mnesia:read(Table, Key) end).
+-spec next_id(Table::atom(), Incr::integer()) -> ctail:id().
+next_id(Table, Incr) -> mnesia:dirty_update_counter({id_seq, Table}, Incr).
 
+-spec get(Table::atom(), Key::ctail:id()) ->
+  {ok, tuple()}
+  | {error, duplicated}
+  | {error, not_found}.
+get(Table, Key) -> just_one(fun() -> mnesia:read(Table, Key) end).
+
+-spec index(Table::atom(), Key::ctail:id(), Value::any()) -> list(tuple()).
 index(Table, Key, Value) ->
   TableInfo = ctail:table(Table),
   Index = string:str(TableInfo#table.fields, [Key]),
   lists:flatten(many(fun() -> mnesia:index_read(Table, Value, Index+1) end)).
 
-all(R) ->
-  lists:flatten(many(fun() -> L = mnesia:all_keys(R), [mnesia:read({R, G}) || G <- L] end)).
+-spec all(Table::atom()) -> list(tuple()).
+all(R) -> lists:flatten(many(fun() -> L = mnesia:all_keys(R), [mnesia:read({R, G}) || G <- L] end)).
 
-count(Table) ->
-  mnesia:table_info(Table, size).
+-spec count(Table::atom()) -> integer().
+count(Table) -> mnesia:table_info(Table, size).
 
+-spec meta() -> #schema{name::ctail, tables::list(#table{})}.
+meta() ->
+  #schema{name=ctail, tables=[
+    #table{name=id_seq, fields=record_info(fields, id_seq), keys=[thing]}
+  ]}.
+
+-spec join() -> ok | {timeout, list(any())} | {error, any()}.
+join() ->
+  mnesia:change_table_copy_type(schema, node(), ctail:config(mnesia_media, disc_copies)),
+  mnesia:create_schema([node()]),
+
+  ctail:create_schema(?MODULE),
+  ctail:create_schema(?MODULE, ?MODULE),
+
+  mnesia:wait_for_tables([ T#table.name || T <- ctail:tables()], infinity).
+
+-spec join(Node::node()) -> list({atom(), any()}).
+join(Node) ->
+  mnesia:change_config(extra_db_nodes, [Node]),
+  mnesia:change_table_copy_type(schema, node(), ctail:config(mnesia_media, disc_copies)),
+
+  [{Tb, mnesia:add_table_copy(Tb, node(), Type)} ||
+   {Tb, [{N, Type}]} <- [{T, mnesia:table_info(T, where_to_commit)} ||
+                         T <- mnesia:system_info(tables)], Node==N].
+
+-spec change_storage(Table::atom(), Type::mnesia_strategy()) -> {atomic, ok} | {aborted, any()}.
+change_storage(Table, Type) -> mnesia:change_table_copy_type(Table, node(), Type).
+
+-spec exec(Q::qlc:query_handle() | list()) -> any(). % ???
+exec(Q) ->
+  F = fun() -> qlc:e(Q) end,
+  {atomic, Val} = mnesia:activity(context(), F),
+  Val.
+
+-spec context() -> any().
+context() -> ctail:config(mnesia_context, async_dirty).
+
+-spec many(Fun::fun()) -> {atomic, any()} | any().
 many(Fun) ->
   case mnesia:activity(context(), Fun) of
     {atomic, R} -> R;
     X -> X
   end.
 
+-spec void(Fun::fun()) -> ok | {error, any()} | any().
 void(Fun) ->
   case mnesia:activity(context(), Fun) of
     {atomic, ok} -> ok;
@@ -121,6 +136,7 @@ void(Fun) ->
     X -> X
   end.
 
+-spec just_one(Fun::fun()) -> {error, not_found} | {error, duplicated} | {ok, any()} | any().
 just_one(Fun) ->
   case mnesia:activity(context(), Fun) of
     {atomic, []} -> {error, not_found};
