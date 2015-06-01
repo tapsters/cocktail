@@ -38,116 +38,96 @@
 
 -type id() :: any().
 
+%% Raw ops
+
 -spec init() -> ok.
-init()                   -> init(?BACKEND).
-
--spec dir() -> list(atom()).
-dir()                    -> dir(?BACKEND).
-
--spec destroy() -> ok.
-destroy()                -> destroy(?BACKEND).
-
--spec next_id(Table::atom()) -> id().
-next_id(Table)           -> next_id(Table, 1, ?BACKEND).
-
--spec next_id(Table::atom(), Incr::integer()) -> id().
-next_id(Table, Incr)     -> next_id(Table, Incr, ?BACKEND).
-
--spec put(Record::tuple()) -> ok | {error, _}.
-put(Record)              -> put(Record, ?BACKEND).
-
--spec delete(Table::atom(), Key::id()) -> ok | {error, _}.
-delete(Table, Key)       -> delete(Table, Key, ?BACKEND).
-
--spec get(Table::atom(), Key::id()) -> {ok, tuple()} | {error, _}.
-get(Table, Key)          -> get(Table, Key, ?BACKEND).
-
--spec index(Table::atom(), Key::any(), Value::any()) -> list(tuple()).
-index(Table, Key, Value) -> index(Table, Key, Value, ?BACKEND).
-
--spec all(Table::atom()) -> list(tuple()).
-all(Table)               -> all(Table, ?BACKEND).
-
--spec count(Table::atom()) -> integer().
-count(Table)             -> count(Table, ?BACKEND).
-
--spec create(ContainerName::atom(), Id::id()) -> id().
-create(ContainerName, Id)               -> create(ContainerName, Id, ?BACKEND).
-
--spec add(Record::tuple()) -> {ok, tuple()} | {error, _}.
-add(Record)                             -> add(Record, ?BACKEND).
-
--spec link(Record::tuple()) -> {ok, tuple()} | {error, _}.
-link(Record)                            -> link(Record, ?BACKEND).
-
--spec feed(Table::atom(), FeedId::any(), Count::integer()) -> none() | list(tuple()).
-feed(Table, FeedId, Count)              -> feed(Table, FeedId, Count, ?BACKEND).
-
--spec entries(Table::atom(), Start::id(), Count::integer(), Directions::any()) -> none() | list(tuple()).
-entries(Table, Start, Count, Direction) -> entries(Table, Start, Count, Direction, ?BACKEND).
-
--spec remove(Table::atom(), Id::id()) -> ok | {error, _}.
-remove(Table, Key)                -> remove(Table, Key, ?BACKEND).
+init() -> 
+  init(?BACKEND).
 
 -spec init(Backend::module()) -> ok.
-init(Backend)                     -> Backend:init().
+init(Backend) -> 
+  Backend:init().
+
+-spec dir() -> list(atom()).
+dir() -> 
+  dir(?BACKEND).
 
 -spec dir(Backend::module()) -> list(atom()).
-dir(Backend)                      -> Backend:dir().
+dir(Backend) -> 
+  Backend:dir().
+
+-spec destroy() -> ok.
+destroy() -> destroy(?BACKEND).
 
 -spec destroy(Backend::module()) -> ok.
-destroy(Backend)                  -> Backend:destroy().
+destroy(Backend) -> 
+  Backend:destroy().
 
--spec put(Record::tuple(), Backend::module()) -> ok | {error, _}.
-put(Record, Backend)              -> Backend:put(Record).
+-spec next_id(Table::atom()) -> id().
+next_id(Table) -> 
+  next_id(Table, 1, ?BACKEND).
 
--spec delete(Table::atom(), Key::id(), Backend::module()) -> ok | {error, _}.
-delete(Table, Key, Backend)       -> Backend:delete(Table, Key).
-
--spec get(Table::atom(), Key::id(), Backend::module()) -> {ok, tuple()} | {error, _}.
-get(Table, Key, Backend)          -> Backend:get(Table, Key).
-
--spec count(Table::atom(), Backend::module()) -> integer().
-count(Table, Backend)             -> Backend:count(Table).
-
--spec all(Table::atom(), Backend::module()) -> list(tuple()) | [].
-all(Table, Backend)               -> Backend:all(Table).
-
--spec index(Table::atom(), Key::any(), Value::any(), Backend::module()) -> list(tuple()).
-index(Table, Key, Value, Backend) -> Backend:index(Table, Key, Value).
+-spec next_id(Table::atom(), Incr::integer()) -> id().
+next_id(Table, Incr) -> 
+  next_id(Table, Incr, ?BACKEND).
 
 -spec next_id(Table::atom(), Incr::integer(), Backend::module()) -> id().
-next_id(Table, Incr, Backend)     -> Backend:next_id(Table, Incr).
+next_id(Table, Incr, Backend) -> 
+  Backend:next_id(Table, Incr).
 
--spec modules() -> list(atom()).
-modules() -> config(schema, [])++[ctail_schema].
+-spec put(Record::tuple()) -> ok | {error, _}.
+put(Record) -> 
+  put(Record, ?BACKEND).
 
--spec tables() -> list(#table{}).
-tables() -> lists:flatten([ (Module:meta())#schema.tables || Module <- modules() ]).
+-spec put(Record::tuple(), Backend::module()) -> ok | {error, _}.
+put(Record, Backend) -> 
+  Backend:put(Record).
 
--spec table(Name::atom()) -> #table{}.
-table(Name) -> lists:keyfind(Name, #table.name, tables()).
+-spec delete(Table::atom(), Key::id()) -> ok | {error, _}.
+delete(Table, Key) -> 
+  delete(Table, Key, ?BACKEND).
 
--spec containers() -> list({ atom(), list(atom()) }).
-containers() ->
-    lists:flatten([ [ {Table#table.name, Table#table.fields}
-        || Table=#table{container=true} <- (Module:meta())#schema.tables ]
-    || Module <- modules() ]).
+-spec delete(Table::atom(), Key::id(), Backend::module()) -> ok | {error, _}.
+delete(Table, Key, Backend) -> 
+  Backend:delete(Table, Key).
 
--spec create_schema() -> ok.
-create_schema() -> create_schema(?BACKEND), ok.
+-spec get(Table::atom(), Key::id()) -> {ok, tuple()} | {error, _}.
+get(Table, Key) -> 
+  get(Table, Key, ?BACKEND).
 
--spec create_schema(Backend::module()) -> ok.
-create_schema(Backend) -> [ create_schema(Module, Backend) || Module <- modules() ], ok.
+-spec get(Table::atom(), Key::id(), Backend::module()) -> {ok, tuple()} | {error, _}.
+get(Table, Key, Backend) -> 
+  Backend:get(Table, Key).
 
--spec create_schema(Module::module(), Backend::module()) -> ok.
-create_schema(Module, Backend) -> [ create_table(Table, Backend) || Table <- (Module:meta())#schema.tables ], ok.
+-spec index(Table::atom(), Key::any(), Value::any()) -> list(tuple()).
+index(Table, Key, Value) -> 
+  index(Table, Key, Value, ?BACKEND).
 
--spec create_table(Table::#table{}, Backend::module()) -> ok.
-create_table(Table, Backend) ->
-  Backend:create_table(Table),
-  [ Backend:add_table_index(Table#table.name, Key) || Key <- Table#table.keys ],
-  ok.
+-spec index(Table::atom(), Key::any(), Value::any(), Backend::module()) -> list(tuple()).
+index(Table, Key, Value, Backend) -> 
+  Backend:index(Table, Key, Value).
+
+-spec all(Table::atom()) -> list(tuple()).
+all(Table) -> 
+  all(Table, ?BACKEND).
+
+-spec all(Table::atom(), Backend::module()) -> list(tuple()) | [].
+all(Table, Backend) -> 
+  Backend:all(Table).
+
+-spec count(Table::atom()) -> integer().
+count(Table) -> 
+  count(Table, ?BACKEND).
+
+-spec count(Table::atom(), Backend::module()) -> integer().
+count(Table, Backend) -> 
+  Backend:count(Table).
+
+%% Chain ops
+
+-spec create(ContainerName::atom(), Id::id()) -> id().
+create(ContainerName, Id) -> 
+  create(ContainerName, Id, ?BACKEND).
 
 -spec create(ContainerName::atom(), Id::id(), Backend::module()) -> id().
 create(ContainerName, Id, Backend) ->
@@ -161,23 +141,160 @@ create(ContainerName, Id, Backend) ->
   ok = put(Top3, Backend),
   Id.
 
+-spec add(Record::tuple()) -> {ok, tuple()} | {error, _}.
+add(Record) -> 
+  add(Record, ?BACKEND).
+
+-spec add(Record::tuple(), Backend::module()) -> {ok, tuple()} | {error, _}.
+add(Record, Backend) when is_tuple(Record) ->
+  Table = element(1, Record),
+  Id    = element(#iterator.id, Record),
+
+  case get(Table, Id, Backend) of
+    {error, _} ->
+      ensure_link(Record, Backend);
+    {ok, _} ->
+      {error, exist}
+  end.
+
+-spec link(Record::tuple()) -> {ok, tuple()} | {error, _}.
+link(Record) -> 
+  link(Record, ?BACKEND).
+
+-spec link(Record::tuple(), Backend::module()) -> {ok, tuple()} | {error, _}.
+link(Record, Backend) ->
+  Table = element(1, Record),
+  Id    = element(#iterator.id, Record),
+
+  case get(Table, Id, Backend) of
+    {ok, Record1} ->
+      ensure_link(Record1, Backend);
+    {error, not_found} ->
+      {error, not_found}
+  end.
+
+-spec feed(Table::atom(), FeedId::any(), Count::integer()) -> none() | list(tuple()).
+feed(Table, FeedId, Count) -> 
+  feed(Table, FeedId, Count, ?BACKEND).
+
+-spec feed(Table::atom(), FeedId::any(), Count::integer(), Backend::module()) -> 
+        none() | list(tuple()).
+feed(Table, FeedId, Count, Backend) ->
+  {ok, Container} = get(feed, FeedId),
+  Start = element(#container.top, Container),
+  entries(Table, Start, Count, #iterator.prev, Backend).
+
+-spec entries(Table::atom(), Start::id(), Count::integer(), Direction::any()) -> 
+        none() | list(tuple()).
+entries(Table, Start, Count, Direction) -> 
+  entries(Table, Start, Count, Direction, ?BACKEND).
+
+-spec entries(Table::atom(), Start::id(), Count::integer(), Direction::any(), 
+              Backend::module()) -> none() | list(tuple()).
+entries(Table, Start, Count, Direction, Backend) ->
+  Records = traversal(Table, Start, Count, Direction, Backend),
+  case Direction of
+    #iterator.next -> lists:reverse(Records);
+    #iterator.prev -> Records
+  end.
+
+-spec remove(Table::atom(), Id::id()) -> ok | {error, _}.
+remove(Table, Key) -> 
+  remove(Table, Key, ?BACKEND).
+
+-spec remove(Table::atom(), Id::id(), Backend::module()) -> ok | {error, _}.
+remove(Table, Id, Backend) ->
+  case Backend:get(Table, Id) of
+    {error, not_found} ->
+      {error, not_found};
+    {ok, Record} ->
+      Container = element(#iterator.container, Record),
+      FeedId    = element(#iterator.feed_id, Record),
+
+      case Backend:get(Container, FeedId) of
+        {ok, Container1} ->
+          relink(Container1, Record, Backend);
+        _ ->
+          skip
+      end,
+
+      Backend:delete(Table, Id)
+  end.
+
+%% Table utils
+
+-spec create_schema() -> ok.
+create_schema() -> 
+  create_schema(?BACKEND), ok.
+
+-spec create_schema(Backend::module()) -> ok.
+create_schema(Backend) -> 
+  [ create_schema(Module, Backend) || Module <- modules() ], ok.
+
+-spec create_schema(Module::module(), Backend::module()) -> ok.
+create_schema(Module, Backend) -> 
+  [ create_table(Table, Backend) || Table <- (Module:meta())#schema.tables ], ok.
+
+-spec create_table(Table::#table{}, Backend::module()) -> ok.
+create_table(Table, Backend) ->
+  Backend:create_table(Table),
+  [ Backend:add_table_index(Table#table.name, Key) || Key <- Table#table.keys ],
+  ok.
+
+%% Utils
+
+-spec modules() -> list(atom()).
+modules() -> 
+  config(schema, [])++[ctail_schema].
+
+-spec tables() -> list(#table{}).
+tables() -> 
+  lists:flatten([ (Module:meta())#schema.tables || Module <- modules() ]).
+
+-spec table(Name::atom()) -> #table{}.
+table(Name) -> 
+  lists:keyfind(Name, #table.name, tables()).
+
+-spec containers() -> list({ atom(), list(atom()) }).
+containers() ->
+    lists:flatten([ [ {Table#table.name, Table#table.fields}
+        || Table=#table{container=true} <- (Module:meta())#schema.tables ]
+    || Module <- modules() ]).
+
+-spec config(Key::atom()) -> any().
+config(Key) -> 
+  config(Key, undefined).
+
+-spec config(Key::atom(), Default::any()) -> any().
+config(Key, Default) -> 
+  config(cocktail, Key, Default).
+
+-spec config(App::atom(), Key::atom(), Default::any()) -> any().
+config(App, Key, Default) ->
+  case application:get_env(App, Key) of
+    undefined -> Default;
+    {ok, Value} -> Value
+  end.
+
+%% Internal
+
 -spec ensure_link(Record::tuple(), Backend::module()) -> {ok, tuple()} | {error, _}.
 ensure_link(Record, Backend) ->
   Table         = element(1, Record),
   Id            = element(#iterator.id, Record),
   ContainerName = element(#iterator.container, Record),
-  ContainerId   = case element(#iterator.feed_id, Record) of
+  FeedId        = case element(#iterator.feed_id, Record) of
                     undefined -> Table;
-                    FeedId -> FeedId
+                    FeedId1 -> FeedId1
                   end,
-
-  Container = case get(ContainerName, ContainerId, Backend) of
+  
+  Container = case get(ContainerName, FeedId, Backend) of
                 {ok, Result} ->
                   Result;
-                {error, _} when ContainerId /= undefined ->
-                  ContainerInfo = proplists:get_value(ContainerName, containers()),
-                  Container1 = list_to_tuple([ContainerName|ContainerInfo]),
-                  Container2 = setelement(#container.id, Container1, ContainerId),
+                {error, _} when FeedId /= undefined ->
+                  ContainerFields = proplists:get_value(ContainerName, containers()),
+                  Container1 = list_to_tuple([ContainerName|[undefined || _ <- ContainerFields]]),
+                  Container2 = setelement(#container.id, Container1, FeedId),
                   Container3 = setelement(#container.count, Container2, 0),
                   Container3;
                 _Error ->
@@ -213,36 +330,12 @@ ensure_link(Record, Backend) ->
 
       Record1 = setelement(#iterator.next, Record, Next),
       Record2 = setelement(#iterator.prev, Record1, Prev),
-      FeedId1 = element(#container.id, Container),
-      Record3 = setelement(#iterator.feed_id, Record2, FeedId1),
+      FeedId2 = element(#container.id, Container),
+      Record3 = setelement(#iterator.feed_id, Record2, FeedId2),
 
       put(Record3, Backend), % Iterator
 
       {ok, Record3}
-  end.
-
--spec link(Record::tuple(), Backend::module()) -> {ok, tuple()} | {error, _}.
-link(Record, Backend) ->
-  Table = element(1, Record),
-  Id    = element(#iterator.id, Record),
-
-  case get(Table, Id, Backend) of
-    {ok, Exists} ->
-      ensure_link(Exists, Backend);
-    {error, not_found} ->
-      {error, not_found}
-  end.
-
--spec add(Record::tuple(), Backend::module()) -> {ok, tuple()} | {error, _}.
-add(Record, Backend) when is_tuple(Record) ->
-  Table = element(1, Record),
-  Id    = element(#iterator.id, Record),
-
-  case get(Table, Id, Backend) of
-    {error, _} ->
-      ensure_link(Record, Backend);
-    {ok, _} ->
-      {error, exist}
   end.
 
 -spec relink(Container::tuple(), Record::tuple(), Backend::module()) -> ok | {error, _}.
@@ -276,34 +369,10 @@ relink(Container, Record, Backend) ->
 
   Backend:put(Containter2).
 
--spec remove(Table::atom(), Id::id(), Backend::module()) -> ok | {error, _}.
-remove(Table, Id, Backend) ->
-  case Backend:get(Table, Id) of
-    {error, not_found} ->
-      {error, not_found};
-    {ok, Record} ->
-      do_remove(Record, Backend)
-  end.
-
--spec do_remove(Record::tuple(), Backend::module()) -> ok.
-do_remove(Record, Backend) ->
-  Table     = element(1, Record),
-  Id        = element(#iterator.id, Record),
-  Container = element(#iterator.container, Record),
-  FeedId    = element(#iterator.feed_id, Record),
-
-  case Backend:get(Container, FeedId) of
-    {ok, Container1} ->
-      relink(Container1, Record, Backend);
-    _ ->
-      skip
-  end,
-
-  Backend:delete(Table, Id).
-
 -spec traversal(Table::atom(), Start::id(), Count::integer(), Direction::integer(),
     Backend::module()) -> list(tuple()).
-traversal(Table, Start, Count, Direction, Backend) -> iterate(Table, Start, Count, Direction, Backend, []).
+traversal(Table, Start, Count, Direction, Backend) -> 
+  iterate(Table, Start, Count, Direction, Backend, []).
 
 -spec iterate(Table::atom(), Start::id(), Count::integer(), Direction::integer(),
     Backend::module(), Acc::list(tuple())) -> list(tuple()).
@@ -320,29 +389,4 @@ iterate( Table,  Start,      Count,  Direction,  Backend, Acc) ->
       iterate(Table, Linked, Count1, Direction, Backend, [Record|Acc]);
     _Error ->
       Acc
-  end.
-
--spec feed(Table::atom(), FeedId::any(), Count::integer(), Backend::module()) -> none() | list(tuple()).
-feed(Table, FeedId, Count, Backend) ->
-  {ok, Container} = get(feed, FeedId),
-  Start = element(#container.top, Container),
-  entries(Table, Start, Count, #iterator.prev, Backend).
-
--spec entries(Table::atom(), Start::id(), Count::integer(), Direction::any(), Backend::module()) -> none() | list(tuple()).
-entries(Table, Start, Count, Direction, Backend) ->
-  Records = traversal(Table, Start, Count, Direction, Backend),
-  case Direction of
-    #iterator.next -> lists:reverse(Records);
-    #iterator.prev -> Records
-  end.
-
--spec config(Key::atom())                              -> any().
-config(Key)               -> config(Key, undefined).
--spec config(Key::atom(), Default::any())              -> any().
-config(Key, Default)      -> config(cocktail, Key, Default).
--spec config(App::atom(), Key::atom(), Default::any()) -> any().
-config(App, Key, Default) ->
-  case application:get_env(App, Key) of
-    undefined -> Default;
-    {ok, Value} -> Value
   end.

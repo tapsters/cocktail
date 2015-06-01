@@ -29,7 +29,6 @@ Example:
 ```Erlang
 1> ctail:init().
 ok
-
 2> ctail_mnesia:join().
 ok
 ```
@@ -86,6 +85,7 @@ To do this you should implement `ctail_schema` behaviour:
 
 meta() ->
   #schema{name=myschema, tables=[
+    %% #table.name should be the same as record name
     #table{name=user, fields=record_info(fields, user), keys = [email]}
   ]}.
 ```
@@ -106,7 +106,7 @@ Backends implement two schema related functions: `create_table/1` and
 Raw operations
 --------------
 
-Cocktail provides following functions to work with raw data:
+Cocktail provides you with following functions to work with raw data:
 * next_id/2
 * put/1
 * delete/2
@@ -119,28 +119,27 @@ When you persist new item to database you should specify id. Backends
 implement `next_id/2` to handle it. Example:
 
 ```Erlang
-ctail:put(#user{id=ctail:next_id(user), firstName="Bob"}). 
+ctail:put(#user{id=ctail:next_id(user,1), firstName="Bob"}). 
 ```
 
 Also you can specify increment but it's ignored by some backends:
 
 ```Erlang
-ctail:put(#user{id=ctail:next_id(user, 1), firstName="Bob"}). 
+ctail:put(#user{id=ctail:next_id(user,1), firstName="Bob"}). 
 ```
 
 Raw operations usage example:
 
 ```Erlang
-1> ctail:put(#user{id=ctail:next_id(user), firstName="Bob", status=0}).
+1> ctail:put(#user{id=ctail:next_id(user,1), firstName="Bob", status=0}).
 ok
-2> ctail:put(#user{id=ctail:next_id(user), firstName="Fred", status=0}).
+2> ctail:put(#user{id=ctail:next_id(user,1), firstName="Fred", status=0}).
 ok
-3> ctail:put(#user{id=ctail:next_id(user), firstName="Pet", status=1}).
+3> ctail:put(#user{id=ctail:next_id(user,1), firstName="Pet", status=1}).
 ok
 
-4> JohnId = ctail:next_id(user).
+4> JohnId = ctail:next_id(user, 1).
 4
-
 5> ctail:put(#user{id=JohnId, firstName="John"}).
 ok
 6> ctail:get(user, JohnId).
@@ -170,10 +169,10 @@ ok
 Chain operations
 ----------------
 
-There are two domains provided by Cocktail to work with linked lists:
+There are two domains provided by Cocktail to work with chains (linked lists):
 container and iterator.
 
-Container holds list's head and count:
+Container holds list's head and count (we call it 'tail'):
 
 ```Erlang
 -define(CONTAINER, 
@@ -205,14 +204,14 @@ adds some fields needed by chain operations:
 -record(iterator,  {?ITERATOR(undefined)}).
 ```
 
-`#iterator.container` is name of the table where you want to store containers
-for this record.
+In the above example `ContainerName` is name of the table where you want to 
+store containers for this record. If `#iterator.container` equals to `undefined`, 
+your record's 'tail' will be stored in builtin container (`feed`).
 
 If you want to your record be ready to use in chain operations, you should
-include ITERATOR macro as first item:
+include ITERATOR macro as first item in your record definition:
 
 ```Erlang
-
 -record(message, {
   ?ITERATOR(feed),
   origin, 
@@ -221,3 +220,144 @@ include ITERATOR macro as first item:
 }).
 ```
 
+Cocktail provides you with following functions to work with chains:
+* create/2
+* add/1
+* link/1
+* feed/3
+* entries/4
+* remove/2
+
+Chain operations usage example:
+
+```Erlang
+1> ctail:get(feed, {chat,1}).
+{error,not_found}
+
+2> ctail:add(#message{id=ctail:next_id(message,1), feed_id={chat,1}, origin=1, 
+                      payload="Hello, Mike"}).
+{ok,#message{id = 1,version = undefined,container = feed,
+             feed_id = {chat,1},
+             prev = undefined,next = undefined,origin = 1,
+             payload = "Hello, Mike",createdAt = undefined}}
+
+3> ctail:get(feed, {chat,1}).
+{ok,#feed{id = {chat,1},top = 1,count = 1}
+
+4> ctail:add(#message{id=ctail:next_id(message,1), feed_id={chat,1}, origin=1, 
+                      payload="How are you?"}).
+{ok,#message{id = 2,version = undefined,container = feed,
+             feed_id = {chat,1},
+             prev = 1,next = undefined,origin = 1,
+             payload = "How are you?",createdAt = undefined}}
+             
+5> ctail:add(#message{id=ctail:next_id(message,1), feed_id={chat,1}, origin=1, 
+                      payload="O rly?"}).
+{ok,#message{id = 3,version = undefined,container = feed,
+             feed_id = {chat,1},
+             prev = 2,next = undefined,origin = 1,
+             payload = "O rly?",createdAt = undefined}}
+
+6> ctail:get(feed, {chat,1}).
+{ok,#feed{id = {chat,1},top = 3,count = 3}
+
+7> ctail:feed(message, {chat,1}, -1).
+[#message{id = 1,version = undefined,container = feed,
+          feed_id = {chat,1},
+          prev = undefined,next = 2,origin = 1,
+          payload = "Hello, Mike",createdAt = undefined},
+ #message{id = 2,version = undefined,container = feed,
+          feed_id = {chat,1},
+          prev = 1,next = 3,origin = 1,
+          payload = "How are you?",createdAt = undefined},
+ #message{id = 3,version = undefined,container = feed,
+          feed_id = {chat,1},
+          prev = 2,next = undefined,origin = 1,
+          payload = "O rly?",createdAt = undefined}]
+
+8> ctail:feed(message, {chat,1}, 2).
+[#message{id = 2,version = undefined,container = feed,
+          feed_id = {chat,1},
+          prev = 1,next = 3,origin = 1,
+          payload = "How are you?",createdAt = undefined},
+ #message{id = 3,version = undefined,container = feed,
+          feed_id = {chat,1},
+          prev = 2,next = undefined,origin = 1,
+          payload = "O rly?",createdAt = undefined}]
+
+9> ctail:entries(message, 3, 2, #iterator.prev).
+[#message{id = 2,version = undefined,container = feed,
+          feed_id = {chat,1},
+          prev = 1,next = 3,origin = 1,
+          payload = "How are you?",createdAt = undefined},
+ #message{id = 3,version = undefined,container = feed,
+          feed_id = {chat,1},
+          prev = 2,next = undefined,origin = 1,
+          payload = "O rly?",createdAt = undefined}]
+
+10> ctail:entries(message, 1, 2, #iterator.next).
+[#message{id = 1,version = undefined,container = feed,
+          feed_id = {chat,1},
+          prev = undefined,next = 2,origin = 1,
+          payload = "Hello, Mike",createdAt = undefined},
+ #message{id = 2,version = undefined,container = feed,
+          feed_id = {chat,1},
+          prev = 1,next = 3,origin = 1,
+          payload = "How are you?",createdAt = undefined}]
+
+11> ctail:remove(message, 2).
+ok
+
+12> ctail:get(feed, {chat,1}).
+{ok,#feed{id = {chat,1},top = 3,count = 2}
+
+13>ctail:feed(message, {chat,1}, -1).
+[#message{id = 1,version = undefined,container = feed,
+          feed_id = {chat,1},
+          prev = undefined,next = 3,origin = 1,
+          payload = "Hello, Mike",createdAt = undefined},
+ #message{id = 3,version = undefined,container = feed,
+          feed_id = {chat,1},
+          prev = 1,next = undefined,origin = 1,
+          payload = "O rly?",createdAt = undefined}]
+
+14> Message = #message{id=ctail:next_id(message,1), feed_id={chat,1}, 
+                       origin=1, payload="New message"}.
+#message{id = 4,version = undefined,container = feed,
+         feed_id = {chat,1},
+         prev = undefined,next = undefined,origin = 1,
+         payload = "New message",createdAt = undefined}
+
+15> ctail:put(Message).
+ok
+
+16> ctail:feed(message, {chat,1}, -1).
+[#message{id = 1,version = undefined,container = feed,
+          feed_id = {chat,1},
+          prev = undefined,next = 3,origin = 1,
+          payload = "Hello, Mike",createdAt = undefined},
+ #message{id = 3,version = undefined,container = feed,
+          feed_id = {chat,1},
+          prev = 1,next = undefined,origin = 1,
+          payload = "O rly?",createdAt = undefined}]
+
+17> ctail:link(Message).
+{ok,#message{id = 4,version = undefined,container = feed,
+             feed_id = {chat,1},
+             prev = 3,next = undefined,origin = 1,
+             payload = "New message",createdAt = undefined}}
+
+18> ctail:feed(message, {chat,1}, -1).
+[#message{id = 1,version = undefined,container = feed,
+          feed_id = {chat,1},
+          prev = undefined,next = 3,origin = 1,
+          payload = "Hello, Mike",createdAt = undefined},
+ #message{id = 3,version = undefined,container = feed,
+          feed_id = {chat,1},
+          prev = 1,next = 4,origin = 1,
+          payload = "O rly?",createdAt = undefined},
+ #message{id = 4,version = undefined,container = feed,
+          feed_id = {chat,1},
+          prev = 3,next = undefined,origin = 1,
+          payload = "New message",createdAt = undefined}]
+```
