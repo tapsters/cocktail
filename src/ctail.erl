@@ -37,6 +37,7 @@
 -define(BACKEND, config(backend, ctail_mnesia)).
 
 -type id() :: any().
+-export_type([id/0]).
 
 %% Raw ops
 
