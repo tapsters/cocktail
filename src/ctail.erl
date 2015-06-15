@@ -181,9 +181,12 @@ feed(Table, FeedId, Count) ->
 -spec feed(Table::atom(), FeedId::any(), Count::integer(), Backend::module()) -> 
         none() | list(tuple()).
 feed(Table, FeedId, Count, Backend) ->
-  {ok, Container} = get(feed, FeedId),
-  Start = element(#container.top, Container),
-  entries(Table, Start, Count, #iterator.prev, Backend).
+  case get(feed, FeedId) of
+    {ok, Container} ->
+      Start = element(#container.top, Container),
+      entries(Table, Start, Count, #iterator.prev, Backend);
+    {error, not_found} -> []
+  end.
 
 -spec entries(Table::atom(), Start::id(), Count::integer(), Direction::any()) -> 
         none() | list(tuple()).
