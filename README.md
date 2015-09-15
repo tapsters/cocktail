@@ -234,7 +234,7 @@ Chain operations usage example:
 1> ctail:get(feed, {chat,1}).
 {error,not_found}
 
-2> ctail:add(#message{id=ctail:next_id(message,1), feed_id={chat,1}, origin=1, 
+2> ctail_feed:add(#message{id=ctail:next_id(message,1), feed_id={chat,1}, origin=1, 
                       payload="Hello, Mike"}).
 {ok,#message{id = 1,version = undefined,container = feed,
              feed_id = {chat,1},
@@ -244,14 +244,14 @@ Chain operations usage example:
 3> ctail:get(feed, {chat,1}).
 {ok,#feed{id = {chat,1},top = 1,count = 1}
 
-4> ctail:add(#message{id=ctail:next_id(message,1), feed_id={chat,1}, origin=1, 
+4> ctail_feed:add(#message{id=ctail:next_id(message,1), feed_id={chat,1}, origin=1, 
                       payload="How are you?"}).
 {ok,#message{id = 2,version = undefined,container = feed,
              feed_id = {chat,1},
              prev = 1,next = undefined,origin = 1,
              payload = "How are you?",createdAt = undefined}}
              
-5> ctail:add(#message{id=ctail:next_id(message,1), feed_id={chat,1}, origin=1, 
+5> ctail_feed:add(#message{id=ctail:next_id(message,1), feed_id={chat,1}, origin=1, 
                       payload="O rly?"}).
 {ok,#message{id = 3,version = undefined,container = feed,
              feed_id = {chat,1},
@@ -261,7 +261,7 @@ Chain operations usage example:
 6> ctail:get(feed, {chat,1}).
 {ok,#feed{id = {chat,1},top = 3,count = 3}
 
-7> ctail:feed(message, {chat,1}, -1).
+7> ctail_feed:get(message, {chat,1}, -1).
 [#message{id = 1,version = undefined,container = feed,
           feed_id = {chat,1},
           prev = undefined,next = 2,origin = 1,
@@ -275,7 +275,7 @@ Chain operations usage example:
           prev = 2,next = undefined,origin = 1,
           payload = "O rly?",createdAt = undefined}]
 
-8> ctail:feed(message, {chat,1}, 2).
+8> ctail_feed:get(message, {chat,1}, 2).
 [#message{id = 2,version = undefined,container = feed,
           feed_id = {chat,1},
           prev = 1,next = 3,origin = 1,
@@ -305,13 +305,13 @@ Chain operations usage example:
           prev = 1,next = 3,origin = 1,
           payload = "How are you?",createdAt = undefined}]
 
-11> ctail:remove(message, 2).
+11> ctail_feed:remove(message, 2).
 ok
 
 12> ctail:get(feed, {chat,1}).
 {ok,#feed{id = {chat,1},top = 3,count = 2}
 
-13>ctail:feed(message, {chat,1}, -1).
+13>ctail_feed:get(message, {chat,1}, -1).
 [#message{id = 1,version = undefined,container = feed,
           feed_id = {chat,1},
           prev = undefined,next = 3,origin = 1,
@@ -331,7 +331,7 @@ ok
 15> ctail:put(Message).
 ok
 
-16> ctail:feed(message, {chat,1}, -1).
+16> ctail_feed:get(message, {chat,1}, -1).
 [#message{id = 1,version = undefined,container = feed,
           feed_id = {chat,1},
           prev = undefined,next = 3,origin = 1,
@@ -347,7 +347,7 @@ ok
              prev = 3,next = undefined,origin = 1,
              payload = "New message",createdAt = undefined}}
 
-18> ctail:feed(message, {chat,1}, -1).
+18> ctail_feed:get(message, {chat,1}, -1).
 [#message{id = 1,version = undefined,container = feed,
           feed_id = {chat,1},
           prev = undefined,next = 3,origin = 1,

@@ -4,7 +4,6 @@
 
 -include_lib("stdlib/include/qlc.hrl").
 -include("ctail.hrl").
--include("ctail_mnesia.hrl").
 
 %% Schema callbacks
 -export([meta/0]).
@@ -17,6 +16,8 @@
 -export([create_table/1, add_table_index/2, dir/0, destroy/0]).
 -export([next_id/2, put/1, delete/2]).
 -export([get/2, index/3, all/1, count/1]).
+
+-record(id_seq, {thing, id}).
 
 -type mnesia_strategy() :: ram_copies | disc_only_copies | disc_copies.
 

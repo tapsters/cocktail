@@ -17,6 +17,7 @@
 -define(CONTAINER,
   id,
   top,
+  bottom,
   count=0
 ).
 
@@ -29,8 +30,8 @@
   next
 ).
 
--record(container, {?CONTAINER}).
--record(feed,      {?CONTAINER}).
--record(iterator,  {?ITERATOR(undefined)}).
+-record(container,    {?CONTAINER}).
+-record(feed,         {?CONTAINER}).
+-record(iterator,     {?ITERATOR(undefined)}).
 
 -endif.
