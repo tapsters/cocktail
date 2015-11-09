@@ -164,10 +164,10 @@ ensure_link(Record, Direction, Backend) ->
     _ when element(#container.top, Container) == Id ->
       {error, just_added};
     _ ->
-      {ContainerTop, InvContainerTop} = case Direction of
-                                          #iterator.prev -> {#container.top, #container.bottom};
-                                          #iterator.next -> {#container.bottom, #container.top}
-                                        end,
+      ContainerTop = case Direction of
+                       #iterator.prev -> #container.top;
+                       #iterator.next -> #container.bottom
+                     end,
       {Prev, Next} = case element(ContainerTop, Container) of
                        undefined ->
                          {undefined, undefined};
@@ -189,7 +189,6 @@ ensure_link(Record, Direction, Backend) ->
                              end
                          end
                      end,
-      %% ctail_feed:add(#user{id=ctail:next_id(user), feed_id=foo, email="1"}).
       
       Container4 = case element(#container.count, Container) of
                      0 ->
@@ -285,7 +284,7 @@ entries(Table, FeedId, StartId, StopId, Count, Direction, Backend) ->
   end.
 
 iterate(_Table, _Result, _StartId, _StopId, 0, _Direction, _Backend, []) -> [];
-iterate(_Table, _Result, StartId, StopId, 0, Direction, _Backend, Acc) ->
+iterate(_Table, _Result, StartId, _StopId, 0, Direction, _Backend, Acc) ->
   case StartId of
     undefined ->
       Acc;
