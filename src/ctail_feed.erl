@@ -286,13 +286,8 @@ entries(Table, FeedId, StartId, StopId, Count, Direction, Backend) ->
 iterate(_Table, _Result, _StartId, _StopId, 0, _Direction, _Backend, []) -> [];
 iterate(_Table, _Result, StartId, _StopId, 0, Direction, _Backend, Acc) ->
   case StartId of
-    undefined ->
-      Acc;
-    _ ->
-      case Direction of
-        #iterator.prev -> lists:droplast(Acc);
-        #iterator.next -> tl(Acc)
-      end
+    undefined -> Acc;
+    _         -> lists:droplast(Acc)
   end;
 iterate(Table, Result, StartId, StopId, Count, Direction, Backend, Acc) ->
   case Result of
