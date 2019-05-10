@@ -23,7 +23,7 @@
 -callback delete(Table :: atom(), Key :: any()) ->
   ok | {error, any()}.
 
--callback next_id(Table :: atom(), Incr :: integer()) ->
+-callback next_id() ->
   any().
 
 -callback get(Table :: atom(), Key :: any()) ->
