@@ -6,7 +6,7 @@
 -export([init/0, init/1]).
 -export([dir/0, dir/1]).
 -export([destroy/0, destroy/1]).
--export([next_id/1, next_id/2, next_id/3]).
+-export([next_id/0, next_id/1]).
 -export([put/1, put/2]).
 -export([delete/2, delete/3]).
 -export([get/2, get/3]).
@@ -53,17 +53,13 @@ destroy() -> destroy(backend()).
 destroy(Backend) -> 
   Backend:destroy().
 
--spec next_id(Table::atom()) -> id().
-next_id(Table) -> 
-  next_id(Table, 1, backend()).
+-spec next_id() -> id().
+next_id() -> 
+  next_id(backend()).
 
--spec next_id(Table::atom(), Incr::integer()) -> id().
-next_id(Table, Incr) -> 
-  next_id(Table, Incr, backend()).
-
--spec next_id(Table::atom(), Incr::integer(), Backend::module()) -> id().
-next_id(Table, Incr, Backend) -> 
-  Backend:next_id(Table, Incr).
+-spec next_id(Backend::module()) -> id().
+next_id(Backend) -> 
+  Backend:next_id().
 
 -spec put(Record::tuple()) -> ok | {error, _}.
 put(Record) -> 
