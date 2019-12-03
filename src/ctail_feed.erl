@@ -50,7 +50,7 @@ get(Table, FeedId, StartId, StopId, Count) ->
 
 -spec get(Table::atom(), FeedId::any(), StartId::ctail:id(), StopId::ctail:id(),
     Count::integer(), FilterFun::fun() | undefined) -> none() | list(tuple()).
-get(Table, FeedId, StartId, StopId, FilterFun, Count) ->
+get(Table, FeedId, StartId, StopId, Count, FilterFun) ->
   get(Table, FeedId, StartId, StopId, Count, FilterFun, ctail:backend()).
 
 -spec get(Table::atom(), FeedId::any(), StartId::ctail:id(), StopId::ctail:id(),
@@ -69,7 +69,7 @@ get_bottom(Table, FeedId, StartId, StopId, Count) ->
 
 -spec get_bottom(Table::atom(), FeedId::any(), StartId::ctail:id(), StopId::ctail:id(),
     Count::integer(), FilterFun::fun() | undefined) -> none() | list(tuple()).
-get_bottom(Table, FeedId, StartId, StopId, FilterFun, Count) ->
+get_bottom(Table, FeedId, StartId, StopId, Count, FilterFun) ->
   get_bottom(Table, FeedId, StartId, StopId, Count, FilterFun, ctail:backend()).
 
 -spec get_bottom(Table::atom(), FeedId::any(), StartId::ctail:id(), StopId::ctail:id(),
