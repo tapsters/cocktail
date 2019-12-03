@@ -3,8 +3,8 @@
 
 -export([add/1, add/2]).
 -export([add_bottom/1, add_bottom/2]).
--export([get/3, get/4, get/5, get/6]).
--export([get_bottom/3, get_bottom/4, get_bottom/5, get_bottom/6]).
+-export([get/3, get/5, get/6, get/7]).
+-export([get_bottom/3, get_bottom/5, get_bottom/6, get_bottom/7]).
 -export([remove/2, remove/3]).
 
 -export([create/2, create/3]).
@@ -13,7 +13,7 @@
 %% API
 
 -spec add(Record::tuple()) -> {ok, tuple()} | {error, _}.
-add(Record) -> 
+add(Record) ->
   add(Record, ctail:backend()).
 
 -spec add(Record::tuple(), Backend::module()) -> {ok, tuple()} | {error, _}.
@@ -21,7 +21,7 @@ add(Record, Backend) when is_tuple(Record) ->
   add(Record, #iterator.prev, Backend).
 
 -spec add_bottom(Record::tuple()) -> {ok, tuple()} | {error, _}.
-add_bottom(Record) -> 
+add_bottom(Record) ->
   add_bottom(Record, ctail:backend()).
 
 -spec add_bottom(Record::tuple(), Backend::module()) -> {ok, tuple()} | {error, _}.
@@ -41,44 +41,44 @@ add(Record, Direction, Backend) when is_tuple(Record) ->
 
 -spec get(Table::atom(), FeedId::any(), Count::integer()) -> none() | list(tuple()).
 get(Table, FeedId, Count) ->
-  get(Table, FeedId, Count, ctail:backend()).
-
--spec get(Table::atom(), FeedId::any(), Count::integer(), Backend::module()) -> 
-        none() | list(tuple()).
-get(Table, FeedId, Count, Backend) ->
-  get(Table, FeedId, undefined, undefined, Count, Backend).
+  get(Table, FeedId, undefined, undefined, Count, undefined, ctail:backend()).
 
 -spec get(Table::atom(), FeedId::any(), StartId::ctail:id(), StopId::ctail:id(),
-          Count::integer()) -> none() | list(tuple()).
+    Count::integer()) -> none() | list(tuple()).
 get(Table, FeedId, StartId, StopId, Count) ->
-  get(Table, FeedId, StartId, StopId, Count, ctail:backend()).
+  get(Table, FeedId, StartId, StopId, Count, undefined, ctail:backend()).
 
 -spec get(Table::atom(), FeedId::any(), StartId::ctail:id(), StopId::ctail:id(),
-          Count::integer(), Backend::module()) -> none() | list(tuple()).
-get(Table, FeedId, StartId, StopId, Count, Backend) ->
-  entries(Table, FeedId, StartId, StopId, Count, #iterator.prev, Backend).
+    Count::integer(), FilterFun::fun() | undefined) -> none() | list(tuple()).
+get(Table, FeedId, StartId, StopId, FilterFun, Count) ->
+  get(Table, FeedId, StartId, StopId, Count, FilterFun, ctail:backend()).
+
+-spec get(Table::atom(), FeedId::any(), StartId::ctail:id(), StopId::ctail:id(),
+    Count::integer(), FilterFun::fun() | undefined, Backend::module()) -> none() | list(tuple()).
+get(Table, FeedId, StartId, StopId, Count, FilterFun, Backend) ->
+  entries(Table, FeedId, StartId, StopId, Count, #iterator.prev, FilterFun, Backend).
 
 -spec get_bottom(Table::atom(), FeedId::any(), Count::integer()) -> none() | list(tuple()).
 get_bottom(Table, FeedId, Count) ->
-  get_bottom(Table, FeedId, Count, ctail:backend()).
-
--spec get_bottom(Table::atom(), FeedId::any(), Count::integer(), Backend::module()) -> 
-        none() | list(tuple()).
-get_bottom(Table, FeedId, Count, Backend) ->
-  get_bottom(Table, FeedId, undefined, undefined, Count, Backend).
+  get_bottom(Table, FeedId, undefined, undefined, Count, undefined, ctail:backend()).
 
 -spec get_bottom(Table::atom(), FeedId::any(), StartId::ctail:id(), StopId::ctail:id(),
-          Count::integer()) -> none() | list(tuple()).
+    Count::integer()) -> none() | list(tuple()).
 get_bottom(Table, FeedId, StartId, StopId, Count) ->
-  get_bottom(Table, FeedId, StartId, StopId, Count, ctail:backend()).
+  get_bottom(Table, FeedId, StartId, StopId, Count, undefined, ctail:backend()).
 
 -spec get_bottom(Table::atom(), FeedId::any(), StartId::ctail:id(), StopId::ctail:id(),
-          Count::integer(), Backend::module()) -> none() | list(tuple()).
-get_bottom(Table, FeedId, StartId, StopId, Count, Backend) ->
-  entries(Table, FeedId, StartId, StopId, Count, #iterator.next, Backend).
+    Count::integer(), FilterFun::fun() | undefined) -> none() | list(tuple()).
+get_bottom(Table, FeedId, StartId, StopId, FilterFun, Count) ->
+  get_bottom(Table, FeedId, StartId, StopId, Count, FilterFun, ctail:backend()).
+
+-spec get_bottom(Table::atom(), FeedId::any(), StartId::ctail:id(), StopId::ctail:id(),
+    Count::integer(), FilterFun::fun() | undefined, Backend::module()) -> none() | list(tuple()).
+get_bottom(Table, FeedId, StartId, StopId, Count, FilterFun, Backend) ->
+  entries(Table, FeedId, StartId, StopId, Count, #iterator.next, FilterFun, Backend).
 
 -spec remove(Table::atom(), Id::ctail:id()) -> ok | {error, _}.
-remove(Table, Key) -> 
+remove(Table, Key) ->
   remove(Table, Key, ctail:backend()).
 
 -spec remove(Table::atom(), Id::ctail:id(), Backend::module()) -> ok | {error, _}.
@@ -101,7 +101,7 @@ remove(Table, Id, Backend) ->
   end.
 
 -spec create(ContainerName::atom(), Id::ctail:id()) -> ctail:id().
-create(ContainerName, Id) -> 
+create(ContainerName, Id) ->
   create(ContainerName, Id, ctail:backend()).
 
 -spec create(ContainerName::atom(), Id::ctail:id(), Backend::module()) -> ctail:id().
@@ -117,7 +117,7 @@ create(ContainerName, Id, Backend) ->
   Id.
 
 -spec link(Record::tuple()) -> {ok, tuple()} | {error, _}.
-link(Record) -> 
+link(Record) ->
   link(Record, ctail:backend()).
 
 -spec link(Record::tuple(), Backend::module()) -> {ok, tuple()} | {error, _}.
@@ -134,8 +134,8 @@ link(Record, Backend) ->
 
 %% Internal
 
--spec ensure_link(Record::tuple(), Direction::integer(), Backend::module()) -> 
-        {ok, tuple()} | {error, _}.
+-spec ensure_link(Record::tuple(), Direction::integer(), Backend::module()) ->
+  {ok, tuple()} | {error, _}.
 ensure_link(Record, Direction, Backend) ->
   Table         = element(1, Record),
   Id            = element(#iterator.id, Record),
@@ -144,7 +144,7 @@ ensure_link(Record, Direction, Backend) ->
                     undefined -> Table;
                     FeedId1 -> FeedId1
                   end,
-  
+
   Container = case Backend:get(ContainerName, FeedId) of
                 {ok, Result} ->
                   Result;
@@ -189,7 +189,7 @@ ensure_link(Record, Direction, Backend) ->
                              end
                          end
                      end,
-      
+
       Container4 = case element(#container.count, Container) of
                      0 ->
                        ContainerX = setelement(#container.top, Container, Id),
@@ -250,7 +250,7 @@ relink(Container, Record, Backend) ->
 
   Backend:put(Container3).
 
-entries(Table, FeedId, StartId, StopId, Count, Direction, Backend) ->
+entries(Table, FeedId, StartId, StopId, Count, Direction, FilterFun, Backend) ->
   case Backend:get(feed, FeedId) of
     {ok, Container} ->
       FirstId = case StartId of
@@ -272,9 +272,9 @@ entries(Table, FeedId, StartId, StopId, Count, Direction, Backend) ->
                      {_, undefined}         -> Count + 1;
                      {_, _}                 -> Count + 2
                    end
-                 end,
+               end,
       Result = ctail:get(Table, FirstId, Backend),
-      Records = iterate(Table, Result, StartId, StopId, Count1, Direction, Backend, []),
+      Records = iterate(Table, Result, StartId, StopId, Count1, Direction, FilterFun, Backend, []),
       case Direction of
         #iterator.next -> lists:reverse(Records);
         #iterator.prev -> Records
@@ -283,28 +283,37 @@ entries(Table, FeedId, StartId, StopId, Count, Direction, Backend) ->
       []
   end.
 
-iterate(_Table, _Result, _StartId, _StopId, 0, _Direction, _Backend, []) -> [];
-iterate(_Table, _Result, StartId, _StopId, 0, _Direction, _Backend, Acc) ->
+iterate(_Table, _Result, _StartId, _StopId, 0, _Direction, _FilterFun, _Backend, []) -> [];
+iterate(_Table, _Result, StartId, _StopId, 0, _Direction, _FilterFun, _Backend, Acc) ->
   case StartId of
     undefined -> Acc;
     _         -> lists:droplast(Acc)
   end;
-iterate(Table, Result, StartId, StopId, Count, Direction, Backend, Acc) ->
+iterate(Table, Result, StartId, StopId, Count, Direction, FilterFun, Backend, Acc) ->
   case Result of
     {ok, Record} ->
       case element(#iterator.id, Record) of
         StopId ->
-          iterate(Table, Result, StartId, StopId, 0, Direction, Backend, Acc);
+          iterate(Table, Result, StartId, StopId, 0, Direction, FilterFun, Backend, Acc);
         _ ->
-          Acc1 = [Record|Acc],
+          {Acc1, Count1} = case FilterFun =:= undefined of
+                             true ->
+                               {[Record|Acc], Count-1};
+                             false ->
+                               case FilterFun(Result) of
+                                 true -> {[Record|Acc], Count-1};
+                                 false -> {Acc, Count}
+                               end
+                           end,
+
           case element(Direction, Record) of
             undefined ->
-              iterate(Table, Result, StartId, StopId, 0, Direction, Backend, Acc1);
+              iterate(Table, Result, StartId, StopId, 0, Direction, FilterFun, Backend, Acc1);
             _ ->
               Result1 = ctail:get(Table, element(Direction, Record)),
-              iterate(Table, Result1, StartId, StopId, Count-1, Direction, Backend, Acc1)
+              iterate(Table, Result1, StartId, StopId, Count1, Direction, FilterFun, Backend, Acc1)
           end
       end;
     {error, _} ->
-      iterate(Table, Result, StartId, StopId, 0, Direction, Backend, Acc)
+      iterate(Table, Result, StartId, StopId, 0, Direction, FilterFun, Backend, Acc)
   end.
